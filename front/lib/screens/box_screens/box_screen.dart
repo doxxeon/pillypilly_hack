@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:pillypilly_h/screens/box_screens/box_qr.dart';
-import 'package:pillypilly_h/screens/box_screens/box_ocr.dart';
+import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
+import '../../widgets/accessible_scaffold.dart';
+import '../../widgets/accessible_button.dart';
+import 'box_qr.dart';
+import 'box_ocr.dart';
 
 class BoxScreen extends StatefulWidget {
   const BoxScreen({Key? key}) : super(key: key);
@@ -12,60 +16,37 @@ class BoxScreen extends StatefulWidget {
 class _BoxScreenState extends State<BoxScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.yellow,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: Semantics(
-          label: '약 상자 인식 화면 제목',
-          child: const Text(
-            '약 상자 인식',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-            ),
-          ),
-        ),
-        leading: Semantics(
-          label: '뒤로 가기',
-          button: true,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Semantics(
-              button: true,
-              label: '바코드 및 QR 코드 스캐너 실행 버튼',
-              child: Tooltip(
-                message: '바코드/QR 찍기',
-                child: SizedBox(
-                  width: 220,
-                  height: 60,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.qr_code_scanner, size: 36, color: Colors.black),
-                    label: const Text(
-                      '바코드/QR 찍기',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.yellow,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      minimumSize: const Size(44, 44),
-                      elevation: 3,
+    return Consumer<ThemeService>(
+      builder: (context, theme, child) {
+        final double fontScale = theme.fontScale;
+        final bool isContrast = theme.isHighContrast;
+
+        // 고대비 모드 색상
+        final Color bgColor = isContrast ? Colors.black : Colors.white;
+        final Color textColor = isContrast ? Colors.yellowAccent : Colors.black;
+        final Color buttonColor = isContrast ? Colors.amberAccent : Colors.blue;
+
+        return AccessibleScaffold(
+          title: '약 상자 인식',
+          backgroundColor: bgColor,
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // ✅ 바코드/QR 버튼
+                  AccessibleButton(
+                    label: '바코드 / QR 찍기',
+                    icon: Icons.qr_code_scanner,
+                    hint: '바코드나 QR 코드를 스캔합니다',
+                    width: double.infinity,
+                    height: 70,
+                    backgroundColor: buttonColor,
+                    textStyle: TextStyle(
+                      fontSize: 20 * fontScale,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                     onPressed: () {
                       Navigator.of(context).push(
@@ -73,36 +54,21 @@ class _BoxScreenState extends State<BoxScreen> {
                       );
                     },
                   ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 30),
-            Semantics(
-              button: true,
-              label: '약 상자 텍스트 OCR 인식 버튼',
-              child: Tooltip(
-                message: '텍스트(OCR) 인식하기',
-                child: SizedBox(
-                  width: 220,
-                  height: 60,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.text_fields, size: 36, color: Colors.black),
-                    label: const Text(
-                      '텍스트(OCR) 인식',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.yellow,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      minimumSize: const Size(44, 44),
-                      elevation: 3,
+
+                  const SizedBox(height: 30),
+
+                  // ✅ OCR 텍스트 인식 버튼
+                  AccessibleButton(
+                    label: '텍스트 (OCR) 인식',
+                    icon: Icons.text_fields,
+                    hint: '약 상자의 텍스트를 인식합니다',
+                    width: double.infinity,
+                    height: 70,
+                    backgroundColor: buttonColor,
+                    textStyle: TextStyle(
+                      fontSize: 20 * fontScale,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                     onPressed: () {
                       Navigator.of(context).push(
@@ -110,12 +76,24 @@ class _BoxScreenState extends State<BoxScreen> {
                       );
                     },
                   ),
-                ),
+
+                  const SizedBox(height: 40),
+
+                  // 💡 음성안내 및 접근성 보조 텍스트
+                  Text(
+                    '카메라를 약 상자에 가까이 가져가면 자동으로 인식됩니다.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16 * fontScale,
+                      color: isContrast ? Colors.yellow : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

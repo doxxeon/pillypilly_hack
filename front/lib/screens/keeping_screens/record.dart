@@ -1,8 +1,10 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vibration/vibration.dart';
+import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
+import '../../widgets/accessible_scaffold.dart';
+import '../../widgets/accessible_button.dart';
 
 class RecordScreen extends StatefulWidget {
   const RecordScreen({super.key});
@@ -36,97 +38,100 @@ class _RecordScreenState extends State<RecordScreen> {
   @override
   void initState() {
     super.initState();
-    _announceRecordCount();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final theme = context.read<ThemeService>();
+      _announceRecordCount(theme);
+    });
   }
 
-  Future<void> _announceRecordCount() async {
-    await tts.speak("총 ${records.length}개의 검색 이력이 있습니다.");
+  Future<void> _announceRecordCount(ThemeService theme) async {
+    if (theme.isVoiceGuideEnabled) {
+      await tts.speak("총 ${records.length}개의 검색 이력이 있습니다.");
+    }
   }
 
-  Future<void> _speakDrugInfo(Map<String, String> record) async {
-    final msg = "${record['drug']} 약품. ${record['method']}으로 검색됨. ${record['date']}에 검색.";
-    await tts.speak(msg);
+  Future<void> _speakDrugInfo(Map<String, String> record, ThemeService theme) async {
+    if (theme.isVoiceGuideEnabled) {
+      final msg = "${record['drug']} 약품. ${record['method']}으로 검색됨. ${record['date']}에 검색.";
+      await tts.speak(msg);
+    }
   }
 
-  void _deleteAllRecords() async {
+  void _deleteAllRecords(ThemeService theme) async {
     if (records.isNotEmpty) {
       Vibration.vibrate(duration: 200);
       setState(() => records.clear());
-      await tts.speak("검색 이력이 모두 삭제되었습니다.");
+      if (theme.isVoiceGuideEnabled) {
+        await tts.speak("검색 이력이 모두 삭제되었습니다.");
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = const ColorScheme.dark(
-      background: Colors.black,
-      primary: Color(0xFFFFEB3B),
-      onPrimary: Colors.black,
-    );
-
-    return Scaffold(
-      backgroundColor: scheme.background,
-      appBar: AppBar(
-        title: const Text('검색 이력'),
-        backgroundColor: scheme.background,
-        foregroundColor: scheme.primary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_forever),
-            tooltip: '모두 삭제',
-            onPressed: _deleteAllRecords,
-          ),
-        ],
-      ),
-      body: records.isEmpty
-          ? Center(
-              child: Semantics(
-                label: '검색 이력이 없습니다.',
-                child: Text(
-                  '검색 이력이 없습니다.',
-                  style: TextStyle(color: scheme.primary, fontSize: 20),
-                ),
-              ),
-            )
-          : ListView.builder(
-              itemCount: records.length,
-              itemBuilder: (context, index) {
-                final record = records[index];
-                return Semantics(
-                  button: true,
-                  label:
-                      '${record['drug']}, ${record['method']}으로 검색됨, ${record['date']}',
-                  hint: '두 번 탭하면 약 정보로 이동',
-                  child: Card(
-                    color: Colors.grey[900],
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: scheme.primary, width: 1.5),
-                    ),
-                    child: ListTile(
-                      onTap: () {
-                        Vibration.vibrate(duration: 100);
-                        _speakDrugInfo(record);
-                        // TODO: 상세 페이지 이동 (약 정보 페이지 연결)
-                      },
-                      title: Text(
-                        record['drug'] ?? '',
-                        style: TextStyle(
-                            color: scheme.primary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        '${record['method']} • ${record['date']}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.white70),
-                    ),
-                  ),
-                );
-              },
+    return Consumer<ThemeService>(
+      builder: (context, theme, child) {
+        return AccessibleScaffold(
+          title: '검색 이력',
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.delete_forever),
+              tooltip: '모두 삭제',
+              onPressed: () => _deleteAllRecords(theme),
             ),
+          ],
+          body: records.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.history,
+                        size: 64,
+                        color: theme.textColor.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '검색 이력이 없습니다.',
+                        style: theme.bodyTextStyle.copyWith(
+                          fontSize: 20 * theme.fontScale,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: records.length,
+                  itemBuilder: (context, index) {
+                    final record = records[index];
+                    return Card(
+                      color: theme.buttonColor,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        title: Text(
+                          record['drug']!,
+                          style: theme.buttonTextStyle.copyWith(
+                            fontSize: 18 * theme.fontScale,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${record['method']} • ${record['date']}',
+                          style: theme.bodyTextStyle.copyWith(
+                            fontSize: 14 * theme.fontScale,
+                            color: theme.buttonTextColor.withOpacity(0.7),
+                          ),
+                        ),
+                        onTap: () {
+                          Vibration.vibrate(duration: 100);
+                          _speakDrugInfo(record, theme);
+                        },
+                      ),
+                    );
+                  },
+                ),
+        );
+      },
     );
   }
 }

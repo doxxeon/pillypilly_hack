@@ -141,7 +141,7 @@ class _TextSearchScreenState extends State<TextSearchScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => DrugDetailScreen(
-          drugInfo: {"itemSeq": item["itemSeq"] ?? 'unknown'},
+          initialDrugInfo: {"itemSeq": item["itemSeq"] ?? 'unknown'},
         ),
       ),
     );

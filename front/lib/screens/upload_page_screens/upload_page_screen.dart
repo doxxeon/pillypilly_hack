@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
+import '../../widgets/accessible_scaffold.dart';
+import '../../widgets/accessible_button.dart';
 import 'camera.dart'; // 카메라 촬영 페이지
 import 'gallery.dart'; // 갤러리 업로드 페이지
 
@@ -27,56 +31,33 @@ class _UploadPageScreenState extends State<UploadPageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Semantics(
-          header: true,
-          child: const Text('처방전 업로드'),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Semantics(
-              label: '카메라로 촬영하기 버튼',
-              button: true,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.photo_camera),
-                label: const Text(
-                  '카메라로 촬영하기',
-                  style: TextStyle(fontSize: 18),
+    return Consumer<ThemeService>(
+      builder: (context, theme, child) {
+        return AccessibleScaffold(
+          title: '처방전 업로드',
+          body: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AccessibleButton(
+                  label: '카메라로 촬영하기',
+                  icon: Icons.photo_camera,
+                  hint: '카메라를 사용해 처방전을 촬영합니다',
+                  onPressed: () => _navigateToPage('camera'),
                 ),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(60),
-                  backgroundColor: Colors.yellow,
-                  foregroundColor: Colors.black,
+                const SizedBox(height: 20),
+                AccessibleButton(
+                  label: '갤러리에서 선택하기',
+                  icon: Icons.photo_library,
+                  hint: '갤러리에서 처방전 이미지를 선택합니다',
+                  onPressed: () => _navigateToPage('gallery'),
                 ),
-                onPressed: () => _navigateToPage('camera'),
-              ),
+              ],
             ),
-            const SizedBox(height: 20),
-            Semantics(
-              label: '갤러리에서 선택하기 버튼',
-              button: true,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.photo_library),
-                label: const Text(
-                  '갤러리에서 선택하기',
-                  style: TextStyle(fontSize: 18),
-                ),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(60),
-                  backgroundColor: Colors.yellow,
-                  foregroundColor: Colors.black,
-                ),
-                onPressed: () => _navigateToPage('gallery'),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
+import '../../widgets/accessible_scaffold.dart';
+import '../../widgets/accessible_button.dart';
 import 'match.dart';
 
 class SafetyScreen extends StatefulWidget {
@@ -25,7 +29,10 @@ class _SafetyScreenState extends State<SafetyScreen> {
   void initState() {
     super.initState();
     _initTts();
-    _speakIntro();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final theme = context.read<ThemeService>();
+      _speakIntro(theme);
+    });
   }
 
   Future<void> _initTts() async {
@@ -35,14 +42,18 @@ class _SafetyScreenState extends State<SafetyScreen> {
     await _flutterTts.setPitch(1.0);
   }
 
-  Future<void> _speakIntro() async {
-    await _flutterTts.speak(
-      "약물 안전성 검사 화면입니다. "
-      "병용 금기, 노인 금기, 임부 금기 등 중에서 원하시는 항목을 선택해주세요.",
-    );
+  Future<void> _speakIntro(ThemeService theme) async {
+    if (theme.isVoiceGuideEnabled) {
+      await _flutterTts.speak(
+        "약물 안전성 검사 화면입니다. "
+        "병용 금기, 노인 금기, 임부 금기 등 중에서 원하시는 항목을 선택해주세요.",
+      );
+    }
   }
 
-  Future<void> _speakOption(String label) async {
+  Future<void> _speakOption(String label, ThemeService theme) async {
+    if (!theme.isVoiceGuideEnabled) return;
+    
     String message;
     switch (label) {
       case '병용금기':
@@ -77,36 +88,26 @@ class _SafetyScreenState extends State<SafetyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Semantics(
-          header: true,
-          label: '약물 안전성 검사 화면',
-          child: const Text('약물 안전성 검사'),
-        ),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: _safetyOptions.map((option) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Semantics(
-                  button: true,
-                  label: '${option['label']} 확인 버튼',
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 70,
-                    child: ElevatedButton.icon(
-                      icon: Icon(option['icon'], size: 32),
-                      label: Text(
-                        option['label'],
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                      ),
+    return Consumer<ThemeService>(
+      builder: (context, theme, child) {
+        return AccessibleScaffold(
+          title: '약물 안전성 검사',
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: _safetyOptions.map((option) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: AccessibleButton(
+                      label: option['label'],
+                      icon: option['icon'],
+                      hint: '${option['label']} 확인 기능을 실행합니다',
+                      width: double.infinity,
+                      height: 70,
                       onPressed: () async {
-                        await _speakOption(option['label']);
+                        await _speakOption(option['label'], theme);
                         await Future.delayed(const Duration(seconds: 1)); // 음성 출력 후 약간의 딜레이
                         if (mounted) {
                           Navigator.push(
@@ -118,23 +119,14 @@ class _SafetyScreenState extends State<SafetyScreen> {
                           );
                         }
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: option['color'],
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(250, 70),
-                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                     ),
-                  ),
-                ),
-              );
-            }).toList(),
+                  );
+                }).toList(),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

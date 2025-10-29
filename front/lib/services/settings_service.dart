@@ -4,6 +4,7 @@ class SettingsService {
   static const _ttsKey = 'voice_guide_enabled';
   static const _fontSizeKey = 'font_size_scale';
   static const _contrastKey = 'high_contrast_enabled';
+  static const _ttsProfileKey = 'tts_profile_name'; // ✅ 추가됨
 
   /// ✅ 음성 안내 여부
   static Future<bool> isVoiceGuideEnabled() async {
@@ -36,5 +37,16 @@ class SettingsService {
   static Future<void> setHighContrastEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_contrastKey, enabled);
+  }
+
+  /// ✅ TTS 프로필 저장 / 불러오기
+  static Future<void> setTtsProfile(String profileName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_ttsProfileKey, profileName);
+  }
+
+  static Future<String> getTtsProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_ttsProfileKey) ?? 'softFemale'; // 기본값
   }
 }

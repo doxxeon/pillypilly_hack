@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:pillypilly_h/screens/search_screens/search_screen.dart';
 import 'package:pillypilly_h/screens/upload_page_screens/upload_page_screen.dart';
 import 'package:pillypilly_h/screens/box_screens/box_screen.dart';
@@ -6,6 +7,10 @@ import 'package:pillypilly_h/screens/manage_screens/manage_screen.dart';
 import 'package:pillypilly_h/screens/safety_screens/safety_screen.dart';
 import 'package:pillypilly_h/screens/keeping_screens/keeping_screen.dart';
 import 'package:pillypilly_h/screens/setting_screens/settings_screen.dart';
+import 'package:pillypilly_h/services/theme_service.dart';
+import 'package:pillypilly_h/widgets/accessible_scaffold.dart';
+import 'package:pillypilly_h/widgets/accessible_button.dart';
+import 'package:pillypilly_h/screens/chatbot_screens/chatbot_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -16,6 +21,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final List<_Feature> features = [
+    _Feature(title: 'AI 챗봇', options: ['챗봇 대화하기'], icon: Icons.chat),
     _Feature(title: '알약 검색하기', options: ['음성으로 검색하기', '텍스트로 검색하기', '카메라로 촬영하기'], icon: Icons.search),
     _Feature(title: '처방전 업로드', options: ['카메라로 촬영하기', '갤러리에서 선택하기'], icon: Icons.upload_file),
     _Feature(title: '약 상자 인식', options: ['바코드/QR 찍기'], icon: Icons.qr_code_scanner),
@@ -54,47 +60,36 @@ class _MainScreenState extends State<MainScreen> {
       Navigator.push(context, MaterialPageRoute(builder: (_) => KeepingScreen()));
       return;
     }
+    if (feature.title == "AI 챗봇") {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatbotScreen()));
+      return;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.amber[700],
-        centerTitle: true,
-        title: const Text(
-          'Pillypilly',
-          style: TextStyle(color: Colors.black, fontSize: 26, fontWeight: FontWeight.bold),
-        ),
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            for (int i = 0; i < features.length; i++) ...[
-              Semantics(
-                label: '${features[i].title} 실행 버튼',
-                child: ElevatedButton.icon(
-                  icon: Icon(features[i].icon),
-                  label: Text(
-                    features[i].title,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+    return Consumer<ThemeService>(
+      builder: (context, theme, child) {
+        return AccessibleScaffold(
+          title: 'Pillypilly',
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                for (int i = 0; i < features.length; i++) ...[
+                  AccessibleButton(
+                    label: features[i].title,
+                    icon: features[i].icon,
+                    hint: '${features[i].title} 기능을 실행합니다',
+                    onPressed: () => _showOptions(context, features[i]),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber[700],
-                    foregroundColor: Colors.black,
-                    minimumSize: const Size.fromHeight(80),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: () => _showOptions(context, features[i]),
-                ),
-              ),
-              if (i != features.length - 1) const SizedBox(height: 20),
-            ],
-          ],
-        ),
-      ),
+                  if (i != features.length - 1) const SizedBox(height: 20),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

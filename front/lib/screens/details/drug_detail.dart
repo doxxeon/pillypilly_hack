@@ -6,8 +6,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 
 class DrugDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> drugInfo; // {"itemSeq": "195900043"}
-  const DrugDetailScreen({super.key, required this.drugInfo});
+  final Map<String, dynamic>? initialDrugInfo;
+  const DrugDetailScreen({super.key, this.initialDrugInfo});
 
   @override
   State<DrugDetailScreen> createState() => _DrugDetailScreenState();
@@ -15,13 +15,24 @@ class DrugDetailScreen extends StatefulWidget {
 
 class _DrugDetailScreenState extends State<DrugDetailScreen> {
   final FlutterTts tts = FlutterTts();
+
   Map<String, dynamic>? detailData;
+  String? _itemSeq;
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _setupTTS();
-    _fetchDrugDetail();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_itemSeq == null && _loading) {
+      _resolveItemSeqAndFetch();
+    }
   }
 
   Future<void> _setupTTS() async {
@@ -30,37 +41,94 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
     await tts.awaitSpeakCompletion(true);
   }
 
-  Future<void> _fetchDrugDetail() async {
+  void _resolveItemSeqAndFetch() {
+    try {
+      final routeArgs = ModalRoute.of(context)?.settings.arguments;
+      Map<String, dynamic>? args;
+      if (routeArgs is Map) {
+        args = routeArgs.map((k, v) => MapEntry(k.toString(), v));
+      }
+
+      final candidate = widget.initialDrugInfo?['itemSeq'] ??
+          widget.initialDrugInfo?['ITEM_SEQ'] ??
+          args?['itemSeq'] ??
+          args?['ITEM_SEQ'] ??
+          args?['id'];
+
+      final seq = candidate?.toString().trim();
+      if (seq == null || seq.isEmpty) {
+        _fail("약 코드(itemSeq)가 전달되지 않았습니다.");
+        return;
+      }
+
+      setState(() => _itemSeq = seq);
+      _fetchDrugDetail(seq);
+    } catch (e) {
+      _fail("인자 해석 중 오류가 발생했습니다.");
+    }
+  }
+
+  Future<void> _fetchDrugDetail(String itemSeq) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
       final baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+      if (baseUrl.isEmpty) {
+        _fail("API_BASE_URL이 설정되지 않았습니다.");
+        return;
+      }
+
       final uri = Uri.parse('$baseUrl/api/v3/log');
       final headers = await ApiHelper.getAuthHeaders();
 
       final response = await http.post(
         uri,
         headers: headers,
-        body: jsonEncode([widget.drugInfo["itemSeq"]]),
+        body: jsonEncode([itemSeq]),
       );
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        final results = decoded["results"] ?? {};
-        if (results.isNotEmpty) {
-          final first = results.values.first;
-          setState(() => detailData = first);
+        final results = decoded["results"];
+        print("📡 서버 응답: $decoded");
 
-          await Future.delayed(const Duration(milliseconds: 800));
-          await _speak("약 상세 정보 화면입니다. 아래로 스와이프하여 항목을 탐색할 수 있습니다. 각 항목을 두 번 탭하면 세부 내용을 들을 수 있습니다.");
-          await _speakSummary(first);
-        } else {
-          await _speak("약 정보를 불러오지 못했습니다.");
+        if (results is Map && results.isNotEmpty) {
+          final key = results.keys.first;
+          final first = results[key];
+          print("🎯 파싱된 약 데이터: $first");
+
+          if (first is Map<String, dynamic>) {
+            setState(() {
+              detailData = first;
+              _loading = false;
+            });
+
+            Future.delayed(const Duration(milliseconds: 500), () async {
+              await _speak("약 상세 정보 화면입니다. 아래로 스와이프하여 항목을 탐색할 수 있습니다.");
+              await _speakSummary(first);
+            });
+            return;
+          }
         }
+        _fail("서버 응답에 약 상세 정보가 없습니다.");
       } else {
-        await _speak("서버에서 정보를 불러오지 못했습니다.");
+        _fail("서버 오류 (${response.statusCode})");
       }
     } catch (e) {
-      await _speak("약 정보 조회 중 오류가 발생했습니다.");
+      _fail("약 정보 조회 중 오류가 발생했습니다.");
     }
+  }
+
+  void _fail(String message) async {
+    setState(() {
+      _loading = false;
+      _error = message;
+      detailData = null;
+    });
+    await _speak(message);
   }
 
   Future<void> _speak(String text) async {
@@ -69,16 +137,27 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
   }
 
   Future<void> _speakSummary(Map<String, dynamic> data) async {
-    final name = data["permit"]?["permitList"]?["itemName"] ?? "이름 정보 없음";
-    final entp = data["permit"]?["permitList"]?["entpName"] ?? "제조사 정보 없음";
-    final effectList = data["edrug"]?["effect"];
-    final effect = (effectList != null && effectList.isNotEmpty)
-        ? effectList.first
-        : "효능 정보 없음";
+    final permit = data["permit"] ?? {};
+    final permitDetail = permit["permitDetail"] ?? {};
+    final permitList = permit["permitList"] ?? {};
 
-    await _speak(
-      "이 약은 $name 입니다. 제조사는 $entp 입니다. 주요 효능은 ${effect.replaceAll('\u0000', '')} 입니다. 세부 항목을 탐색하려면 아래로 스와이프하세요.",
-    );
+    final name = permitList["itemName"] ??
+        permitDetail["ITEM_NAME"] ??
+        "이름 정보 없음";
+    final entp = permitList["entpName"] ??
+        permitDetail["ENTP_NAME"] ??
+        "제조사 정보 없음";
+
+    final effectList = data["edrug"]?["effect"];
+    String effect;
+    if (effectList is List && effectList.isNotEmpty) {
+      effect = effectList.first.toString();
+    } else {
+      effect = permitDetail["EE_TEXT"] ?? "효능 정보 없음";
+    }
+
+    final cleaned = effect.replaceAll('\u0000', '');
+    await _speak("이 약은 $name 입니다. 제조사는 $entp 입니다. 주요 효능은 $cleaned 입니다.");
   }
 
   @override
@@ -95,17 +174,38 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
       onPrimary: Colors.black,
     );
 
-    final data = detailData;
-    if (data == null) {
+    if (_loading) {
       return Scaffold(
         backgroundColor: scheme.background,
+        appBar: AppBar(
+          title: const Text("약 상세 정보"),
+          backgroundColor: scheme.background,
+          foregroundColor: scheme.primary,
+        ),
         body: const Center(
           child: CircularProgressIndicator(color: Colors.yellowAccent),
         ),
       );
     }
 
-    final permit = data["permit"]?["permitList"] ?? {};
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: scheme.background,
+        appBar: AppBar(
+          title: const Text("약 상세 정보"),
+          backgroundColor: scheme.background,
+          foregroundColor: scheme.primary,
+        ),
+        body: Center(
+          child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 18)),
+        ),
+      );
+    }
+
+    final data = detailData!;
+    final permit = data["permit"]?["permitList"] ??
+        data["permit"]?["permitDetail"] ??
+        {};
     final edrug = data["edrug"] ?? {};
     final dur = data["dur"] ?? {};
 
@@ -123,20 +223,19 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
             Semantics(
               header: true,
               focusable: true,
-              label: "약 기본 정보 제목",
-              hint: "약 이름과 제조사 등의 기본 정보를 포함합니다.",
+              label: "약 기본 정보",
               child: Text(
-                permit["itemName"] ?? "이름 없음",
+                (permit["itemName"] ?? permit["ITEM_NAME"] ?? "이름 없음").toString(),
                 style: TextStyle(
                   color: scheme.primary,
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              "제조사: ${permit["entpName"] ?? "정보 없음"}",
+              "제조사: ${permit["entpName"] ?? permit["ENTP_NAME"] ?? "정보 없음"}",
               style: const TextStyle(color: Colors.white70, fontSize: 18),
             ),
             const SizedBox(height: 8),
@@ -146,34 +245,18 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
             ),
             const Divider(color: Colors.white24, height: 30),
 
-            Semantics(
-              header: true,
-              focusable: true,
-              label: "일반 의약 정보 섹션",
-              hint: "효능, 용법, 주의사항 등을 포함합니다.",
-              child: const Text(
-                "일반 의약 정보",
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            ),
-            _buildAccessibleButton(context, "효능 및 효과", edrug["effect"]),
-            _buildAccessibleButton(context, "용법 및 용량", edrug["dosage"]),
-            _buildAccessibleButton(context, "주의사항", edrug["precautions"]),
-            _buildAccessibleButton(context, "병용금기 및 상호작용", edrug["interactions"]),
+            _buildAccessibleButton(context, "효능 및 효과",
+                edrug["effect"] ?? permit["permitDetail"]?["EE_TEXT"]),
+            _buildAccessibleButton(context, "용법 및 용량",
+                edrug["dosage"] ?? permit["permitDetail"]?["UD_TEXT"]),
+            _buildAccessibleButton(context, "주의사항",
+                edrug["precautions"] ?? permit["permitDetail"]?["NB_TEXT"]),
             _buildAccessibleButton(context, "부작용", edrug["sideEffects"]),
+            _buildAccessibleButton(context, "병용금기 및 상호작용",
+                edrug["interactions"]),
 
             const Divider(color: Colors.white30, height: 40),
-
-            Semantics(
-              header: true,
-              focusable: true,
-              label: "DUR 금기 정보 섹션",
-              hint: "특정 연령, 임부, 노인, 투여 기간 등의 금기 정보를 포함합니다.",
-              child: const Text(
-                "DUR 금기 정보",
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            ),
+            const Text("DUR 금기 정보", style: TextStyle(color: Colors.white70, fontSize: 16)),
             _buildAccessibleButton(context, "병용금기", dur["combination"]),
             _buildAccessibleButton(context, "노인금기", dur["elderly"]),
             _buildAccessibleButton(context, "임부금기", dur["pregnant"]),
@@ -186,7 +269,9 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
-        onPressed: () => _speakSummary(data),
+        onPressed: () {
+          if (detailData != null) _speakSummary(detailData!);
+        },
         tooltip: "약 요약 다시 듣기",
         child: const Icon(Icons.volume_up),
       ),
@@ -194,10 +279,28 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
   }
 
   Widget _buildAccessibleButton(BuildContext context, String title, dynamic contentList) {
+    print("🧩 [$title] contentList type: ${contentList.runtimeType} → $contentList");
+
     if (contentList == null ||
         (contentList is List && contentList.isEmpty) ||
+        (contentList is String && contentList.trim().isEmpty) ||
         (contentList is Map && contentList.isEmpty)) {
-      return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white24),
+          ),
+          child: Text(
+            "❌ $title 정보가 없습니다.",
+            style: const TextStyle(color: Colors.white60, fontSize: 16),
+          ),
+        ),
+      );
     }
 
     return Padding(
@@ -213,6 +316,7 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.all(16),
             overlayColor: Colors.yellow.withOpacity(0.2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: () async {
             await _speak("$title 내용을 읽습니다.");
@@ -226,7 +330,10 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
           child: Row(
             children: [
               Expanded(
-                child: Text(title, style: const TextStyle(fontSize: 18)),
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
               ),
               const Icon(Icons.chevron_right, color: Colors.white70),
             ],
@@ -282,9 +389,14 @@ class _DrugDetailSubPageState extends State<DrugDetailSubPage> {
       primary: Color(0xFFFFEB3B),
     );
 
-    final list = widget.contents is List
-        ? (widget.contents as List)
-        : [widget.contents.toString()];
+    final List<String> list;
+    if (widget.contents is List) {
+      list = (widget.contents as List).map((e) => e.toString()).toList();
+    } else if (widget.contents is Map) {
+      list = (widget.contents as Map).entries.map((e) => "${e.key}: ${e.value}").toList();
+    } else {
+      list = [widget.contents.toString()];
+    }
 
     return Scaffold(
       backgroundColor: scheme.background,
@@ -295,35 +407,23 @@ class _DrugDetailSubPageState extends State<DrugDetailSubPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Semantics(
-          focusable: true,
-          label: "${widget.title} 세부 내용 영역",
-          hint: "화면을 아래로 스와이프하여 각 문장을 들을 수 있습니다.",
-          child: ListView.builder(
-            itemCount: list.length,
-            itemBuilder: (context, index) {
-              final content = list[index].toString().replaceAll('\u0000', '');
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Semantics(
-                  label: "${widget.title} ${index + 1}번째 문장",
-                  child: Text(
-                    content,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
+        child: ListView.builder(
+          itemCount: list.length,
+          itemBuilder: (context, index) {
+            final content = list[index].replaceAll('\u0000', '');
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                content,
+                style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.5),
+              ),
+            );
+          },
         ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
+        foregroundColor: Colors.black,
         tooltip: "내용 다시 듣기",
         onPressed: () => _speak("${widget.title} 내용을 다시 들려드리겠습니다."),
         child: const Icon(Icons.volume_up),

@@ -1,8 +1,12 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vibration/vibration.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
+import '../../services/medication_database.dart';
+import '../../widgets/accessible_scaffold.dart';
+import '../../widgets/accessible_button.dart';
+import '../../widgets/loading_widget.dart';
 
 class CheckScreen extends StatefulWidget {
   const CheckScreen({super.key});
@@ -13,175 +17,232 @@ class CheckScreen extends StatefulWidget {
 
 class _CheckScreenState extends State<CheckScreen> {
   final FlutterTts tts = FlutterTts();
-  Map<String, List<Map<String, dynamic>>> weeklySchedules = {
-    '월요일': [],
-    '화요일': [],
-    '수요일': [],
-    '목요일': [],
-    '금요일': [],
-    '토요일': [],
-    '일요일': [],
-  };
+  final MedicationDatabase _db = MedicationDatabase();
+  List<MedicationSchedule> todaySchedules = [];
+  List<MedicationRecord> todayRecords = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadSchedules();
+    _loadTodayData();
   }
 
-  Future<void> _loadSchedules() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedData = prefs.getString('schedules');
-    if (savedData != null) {
-      final List<Map<String, dynamic>> schedules =
-          List<Map<String, dynamic>>.from(json.decode(savedData));
+  Future<void> _loadTodayData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-      // 요일별 그룹화
-      final Map<String, List<Map<String, dynamic>>> grouped = {
-        '월요일': [],
-        '화요일': [],
-        '수요일': [],
-        '목요일': [],
-        '금요일': [],
-        '토요일': [],
-        '일요일': [],
-      };
-
-      for (var item in schedules) {
-        final day = item['day'] ?? '월요일';
-        grouped[day]?.add(item);
-      }
-
+    try {
+      // 주간 리셋 확인
+      await _db.checkAndResetWeekly();
+      
+      // 오늘의 복약 일정과 기록 로드
+      final schedules = await _db.getTodaySchedules();
+      final records = await _db.getTodayRecords();
+      
       setState(() {
-        weeklySchedules = grouped;
+        todaySchedules = schedules;
+        todayRecords = records;
+        _isLoading = false;
       });
-
-      await tts.speak("복약 여부 확인 페이지입니다. 요일별 복용 일정을 불러왔습니다.");
-    } else {
-      await tts.speak("저장된 복약 일정이 없습니다. 복약 일정 관리 페이지에서 추가해주세요.");
+    } catch (e) {
+      setState(() {
+        _errorMessage = "오늘의 복약 정보를 불러오는데 실패했습니다.";
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _toggleTaken(String day, int index) async {
-    setState(() {
-      weeklySchedules[day]![index]['taken'] =
-          !weeklySchedules[day]![index]['taken'];
-    });
+  Future<void> _toggleMedicationTaken(MedicationSchedule schedule, String time, ThemeService theme) async {
+    try {
+      // 해당 시간의 기록 찾기
+      final existingRecord = todayRecords.firstWhere(
+        (record) => record.scheduleId == schedule.id && record.takenTime == time,
+        orElse: () => MedicationRecord(
+          scheduleId: schedule.id!,
+          takenDate: DateTime.now().toIso8601String().split('T')[0],
+          takenTime: time,
+        ),
+      );
 
-    // 저장된 데이터도 업데이트
-    final prefs = await SharedPreferences.getInstance();
-    final allData = weeklySchedules.values.expand((v) => v).toList();
-    await prefs.setString('schedules', json.encode(allData));
+      final isTaken = !existingRecord.isTaken;
+      
+      if (existingRecord.id == null) {
+        // 새 기록 생성
+        final newRecord = MedicationRecord(
+          scheduleId: schedule.id!,
+          takenDate: DateTime.now().toIso8601String().split('T')[0],
+          takenTime: time,
+          isTaken: isTaken,
+          takenAt: isTaken ? DateTime.now().toIso8601String() : null,
+        );
+        await _db.insertMedicationRecord(newRecord);
+      } else {
+        // 기존 기록 업데이트
+        await _db.updateMedicationRecord(existingRecord.id!, isTaken);
+      }
 
-    final record = weeklySchedules[day]![index];
-    final msg = record['taken']
-        ? "${record['day']}의 ${record['drug']} 복용 완료로 표시되었습니다."
-        : "${record['day']}의 ${record['drug']} 복용 미완료로 변경되었습니다.";
-    await tts.speak(msg);
-    Vibration.vibrate(duration: 120);
+      // 데이터 새로고침
+      await _loadTodayData();
+      
+      if (theme.isVoiceGuideEnabled) {
+        await tts.speak(isTaken ? "복용 완료로 기록되었습니다." : "복용 기록이 취소되었습니다.");
+      }
+      Vibration.vibrate(duration: 150);
+    } catch (e) {
+      if (theme.isVoiceGuideEnabled) {
+        await tts.speak("복용 기록 업데이트에 실패했습니다.");
+      }
+    }
+  }
+
+  bool _isMedicationTaken(MedicationSchedule schedule, String time) {
+    return todayRecords.any((record) => 
+      record.scheduleId == schedule.id && 
+      record.takenTime == time && 
+      record.isTaken
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = const ColorScheme.dark(
-      background: Colors.black,
-      primary: Color(0xFFFFEB3B),
-      onPrimary: Colors.black,
-    );
-
-    return Scaffold(
-      backgroundColor: scheme.background,
-      appBar: AppBar(
-        title: const Text('복약 여부 체크'),
-        backgroundColor: scheme.background,
-        foregroundColor: scheme.primary,
-      ),
-      body: ListView(
-        children: weeklySchedules.entries.map((entry) {
-          final day = entry.key;
-          final schedules = entry.value;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  day,
-                  style: TextStyle(
-                      color: scheme.primary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                schedules.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(left: 8, bottom: 8),
-                        child: Text('등록된 복약 일정이 없습니다.',
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 15)),
-                      )
-                    : Column(
-                        children: schedules.asMap().entries.map((e) {
-                          final index = e.key;
-                          final record = e.value;
-                          return Semantics(
-                            button: true,
-                            label:
-                                '${record['drug']} ${record['time']}에 복용 예정. 현재 상태: ${record['taken'] ? "복용 완료" : "미복용"}',
-                            hint: '두 번 탭하여 복용 상태를 변경합니다.',
-                            child: Card(
-                              color: Colors.grey[900],
-                              margin:
-                                  const EdgeInsets.symmetric(vertical: 6),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                    color: scheme.primary, width: 1.5),
+    return Consumer<ThemeService>(
+      builder: (context, theme, child) {
+        return AccessibleScaffold(
+          title: '복약 여부 체크',
+          body: _isLoading
+              ? const LoadingWidget(message: "오늘의 복약 정보를 불러오는 중입니다...")
+              : _errorMessage != null
+                  ? CustomErrorWidget(
+                      message: _errorMessage!,
+                      onRetry: () => _loadTodayData(),
+                    )
+                  : todaySchedules.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.medication,
+                                size: 64,
+                                color: theme.textColor.withOpacity(0.5),
                               ),
-                              child: ListTile(
-                                onTap: () => _toggleTaken(day, index),
-                                leading: Icon(
-                                  record['taken']
-                                      ? Icons.check_circle
-                                      : Icons.radio_button_unchecked,
-                                  color: record['taken']
-                                      ? Colors.greenAccent
-                                      : scheme.primary,
-                                  size: 28,
+                              const SizedBox(height: 16),
+                              Text(
+                                '오늘은 복용할 약이 없습니다',
+                                style: theme.bodyTextStyle.copyWith(
+                                  fontSize: 18 * theme.fontScale,
                                 ),
-                                title: Text(
-                                  record['drug'],
-                                  style: TextStyle(
-                                    color: scheme.primary,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '시간: ${record['time']}',
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 14),
-                                ),
-                                trailing: Text(
-                                  record['taken'] ? '완료' : '미완료',
-                                  style: TextStyle(
-                                    color: record['taken']
-                                        ? Colors.greenAccent
-                                        : Colors.redAccent,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '복약 일정을 먼저 등록해주세요',
+                                style: theme.subtitleTextStyle,
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Text(
+                                '오늘의 복약 일정',
+                                style: theme.titleStyle.copyWith(
+                                  fontSize: 20 * theme.fontScale,
                                 ),
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                const Divider(color: Colors.white24, height: 24),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
+                            Expanded(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.all(16.0),
+                                itemCount: todaySchedules.length,
+                                itemBuilder: (context, index) {
+                                  final schedule = todaySchedules[index];
+                                  return Card(
+                                    color: theme.buttonColor,
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            schedule.drugName,
+                                            style: theme.buttonTextStyle.copyWith(
+                                              fontSize: 20 * theme.fontScale,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '복용량: ${schedule.dosage}',
+                                            style: theme.bodyTextStyle.copyWith(
+                                              fontSize: 16 * theme.fontScale,
+                                              color: theme.buttonTextColor,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            '복용 시간',
+                                            style: theme.buttonTextStyle.copyWith(
+                                              fontSize: 16 * theme.fontScale,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          ...schedule.times.map((time) {
+                                            final isTaken = _isMedicationTaken(schedule, time);
+                                            return Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                              child: Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      time,
+                                                      style: theme.bodyTextStyle.copyWith(
+                                                        fontSize: 16 * theme.fontScale,
+                                                        color: theme.buttonTextColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Switch(
+                                                    value: isTaken,
+                                                    onChanged: (value) => _toggleMedicationTaken(schedule, time, theme),
+                                                    activeColor: Colors.green,
+                                                    inactiveThumbColor: Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Icon(
+                                                    isTaken ? Icons.check_circle : Icons.radio_button_unchecked,
+                                                    color: isTaken ? Colors.green : Colors.grey,
+                                                    size: 24,
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: AccessibleButton(
+                                label: '새로고침',
+                                icon: Icons.refresh,
+                                hint: '복약 정보를 새로고침합니다',
+                                onPressed: () => _loadTodayData(),
+                              ),
+                            ),
+                          ],
+                        ),
+        );
+      },
     );
   }
 }

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:pillypilly_h/screens/manage_screens/date.dart';
-import 'package:pillypilly_h/screens/manage_screens/check.dart';
+import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
+import '../../widgets/accessible_scaffold.dart';
+import '../../widgets/accessible_button.dart';
+import 'date.dart';
+import 'check.dart';
 
 class ManageScreen extends StatefulWidget {
   const ManageScreen({Key? key}) : super(key: key);
@@ -12,75 +16,42 @@ class ManageScreen extends StatefulWidget {
 class _ManageScreenState extends State<ManageScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Semantics(
-          label: '복약 관리 화면',
-          child: Text('복약 관리'),
-        ),
-        backgroundColor: Colors.yellow[700],
-        foregroundColor: Colors.black,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Semantics(
-              button: true,
-              onTapHint: '복용 일정 알림 화면으로 이동',
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.alarm, size: 36),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Text(
-                    '복용 일정 알림',
-                    style: TextStyle(fontSize: 22),
-                  ),
+    return Consumer<ThemeService>(
+      builder: (context, theme, child) {
+        return AccessibleScaffold(
+          title: '복약 관리',
+          body: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AccessibleButton(
+                  label: '복용 일정 알림',
+                  icon: Icons.alarm,
+                  hint: '복용 일정 알림을 설정합니다',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const DateScreen()),
+                    );
+                  },
                 ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DateScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(200, 64),
-                  backgroundColor: Colors.yellow[700],
-                  foregroundColor: Colors.black,
-                  textStyle: const TextStyle(fontSize: 22),
+                const SizedBox(height: 32),
+                AccessibleButton(
+                  label: '복약 여부 체크',
+                  icon: Icons.check,
+                  hint: '복약 여부를 체크합니다',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CheckScreen()),
+                    );
+                  },
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 32),
-            Semantics(
-              button: true,
-              onTapHint: '복약 여부 체크 화면으로 이동',
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.check, size: 36),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Text(
-                    '복약 여부 체크',
-                    style: TextStyle(fontSize: 22),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const CheckScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(200, 64),
-                  backgroundColor: Colors.yellow[700],
-                  foregroundColor: Colors.black,
-                  textStyle: const TextStyle(fontSize: 22),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
