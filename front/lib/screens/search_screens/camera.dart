@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vibration/vibration.dart';
 import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
+import '../../services/theme_service.dart';
 
 // ✅ ultralytics_yolo import
 import 'package:ultralytics_yolo/yolo_view.dart';
@@ -48,7 +50,10 @@ class _PillCameraScreenState extends State<PillCameraScreen> {
   }
 
   Future<void> _init() async {
-    await tts.speak("카메라와 모델을 준비합니다. 알약을 비춰주세요.");
+    final theme = context.read<ThemeService>();
+    if (theme.isVoiceGuideEnabled) {
+      await tts.speak("카메라와 모델을 준비합니다. 알약을 비춰주세요.");
+    }
     setState(() => _isInitialized = true);
   }
 
@@ -65,7 +70,10 @@ class _PillCameraScreenState extends State<PillCameraScreen> {
       _results = results;
       _isSpeaking = true;
 
-      await tts.speak("현재 $_pillCount개의 알약이 감지되었습니다.");
+      final theme = context.read<ThemeService>();
+      if (theme.isVoiceGuideEnabled) {
+        await tts.speak("현재 $_pillCount개의 알약이 감지되었습니다.");
+      }
       Vibration.vibrate(duration: 60);
 
       _isSpeaking = false;
@@ -90,8 +98,12 @@ class _PillCameraScreenState extends State<PillCameraScreen> {
   // 프레임 저장 후 서버 업로드
   Future<void> _captureImage() async {
     try {
+      final theme = context.read<ThemeService>();
+      
       if (_lastFrameBytes == null) {
-        await tts.speak("아직 이미지 프레임을 받지 못했습니다. 잠시 후 다시 시도해주세요.");
+        if (theme.isVoiceGuideEnabled) {
+          await tts.speak("아직 이미지 프레임을 받지 못했습니다. 잠시 후 다시 시도해주세요.");
+        }
         return;
       }
 
@@ -100,11 +112,16 @@ class _PillCameraScreenState extends State<PillCameraScreen> {
       final file = File(path);
       await file.writeAsBytes(_lastFrameBytes!);
 
-      await tts.speak("촬영이 완료되었습니다. $_pillCount 개의 알약이 맞나요?");
+      if (theme.isVoiceGuideEnabled) {
+        await tts.speak("촬영이 완료되었습니다. $_pillCount 개의 알약이 맞나요?");
+      }
       _showConfirmDialog(file);
     } catch (e) {
       debugPrint("프레임 저장 오류: $e");
-      await tts.speak("촬영 중 오류가 발생했습니다.");
+      final theme = context.read<ThemeService>();
+      if (theme.isVoiceGuideEnabled) {
+        await tts.speak("촬영 중 오류가 발생했습니다.");
+      }
     }
   }
 
@@ -128,7 +145,10 @@ class _PillCameraScreenState extends State<PillCameraScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              tts.speak("다시 촬영해주세요.");
+              final theme = context.read<ThemeService>();
+              if (theme.isVoiceGuideEnabled) {
+                tts.speak("다시 촬영해주세요.");
+              }
             },
             child: const Text("아니오", style: TextStyle(color: Colors.white)),
           ),
@@ -138,7 +158,10 @@ class _PillCameraScreenState extends State<PillCameraScreen> {
   }
 
   Future<void> _uploadToServer(File imageFile) async {
-    await tts.speak("서버로 이미지를 전송합니다.");
+    final theme = context.read<ThemeService>();
+    if (theme.isVoiceGuideEnabled) {
+      await tts.speak("서버로 이미지를 전송합니다.");
+    }
     try {
       final res = await dio.post(
         "https://your-server.com/api/pill-detect",
@@ -148,10 +171,14 @@ class _PillCameraScreenState extends State<PillCameraScreen> {
         }),
       );
       final result = res.data["result"] ?? "결과를 불러올 수 없습니다.";
-      await tts.speak("결과는 $result 입니다.");
+      if (theme.isVoiceGuideEnabled) {
+        await tts.speak("결과는 $result 입니다.");
+      }
     } catch (e) {
       debugPrint("업로드 오류: $e");
-      await tts.speak("전송에 실패했습니다.");
+      if (theme.isVoiceGuideEnabled) {
+        await tts.speak("전송에 실패했습니다.");
+      }
     }
   }
 

@@ -5,7 +5,9 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vibration/vibration.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 import 'package:pillypilly_h/api_services/api_helper.dart';
+import '../../services/theme_service.dart';
 
 class PrescriptionCameraPage extends StatefulWidget {
   const PrescriptionCameraPage({Key? key}) : super(key: key);
@@ -25,10 +27,15 @@ class _PrescriptionCameraPageState extends State<PrescriptionCameraPage> {
   @override
   void initState() {
     super.initState();
-    _speak("처방전 촬영 페이지입니다. 중앙의 큰 버튼을 눌러 촬영하세요.");
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speak("처방전 촬영 페이지입니다. 중앙의 큰 버튼을 눌러 촬영하세요.");
+    });
   }
 
   Future<void> _speak(String text) async {
+    final theme = context.read<ThemeService>();
+    if (!theme.isVoiceGuideEnabled) return;
+    
     await _tts.setLanguage("ko-KR");
     await _tts.setSpeechRate(0.5);
     await _tts.speak(text);

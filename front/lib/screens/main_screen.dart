@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import 'package:pillypilly_h/screens/search_screens/search_screen.dart';
 import 'package:pillypilly_h/screens/upload_page_screens/upload_page_screen.dart';
 import 'package:pillypilly_h/screens/box_screens/box_screen.dart';
-import 'package:pillypilly_h/screens/manage_screens/manage_screen.dart';
-import 'package:pillypilly_h/screens/safety_screens/safety_screen.dart';
 import 'package:pillypilly_h/screens/keeping_screens/keeping_screen.dart';
 import 'package:pillypilly_h/screens/setting_screens/settings_screen.dart';
+
 import 'package:pillypilly_h/services/theme_service.dart';
 import 'package:pillypilly_h/widgets/accessible_scaffold.dart';
-import 'package:pillypilly_h/widgets/accessible_button.dart';
-import 'package:pillypilly_h/screens/chatbot_screens/chatbot_screen.dart';
+import 'package:pillypilly_h/services/tts_service.dart' as tts_opt;
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -20,50 +20,51 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  // 쨍한 오렌지
+  static const Color kOrange = Color(0xFFFF7A00);
+  static const Color kOrangePressed = Color(0xFFE66E00);
+  static const Color kShadow = Colors.black12;
+
   final List<_Feature> features = [
-    _Feature(title: 'AI 챗봇', options: ['챗봇 대화하기'], icon: Icons.chat),
-    _Feature(title: '알약 검색하기', options: ['음성으로 검색하기', '텍스트로 검색하기', '카메라로 촬영하기'], icon: Icons.search),
-    _Feature(title: '처방전 업로드', options: ['카메라로 촬영하기', '갤러리에서 선택하기'], icon: Icons.upload_file),
-    _Feature(title: '약 상자 인식', options: ['바코드/QR 찍기'], icon: Icons.qr_code_scanner),
-    _Feature(title: '복약 관리', options: ['복용 일정 알림', '복약 여부 체크'], icon: Icons.check_circle),
-    _Feature(title: '약물 안전성 검사', options: ['병용금기 확인하기'], icon: Icons.health_and_safety),
-    _Feature(title: '보관함', options: ['검색 기록 확인하기'], icon: Icons.folder),
-    _Feature(title: '설정', options: ['음성 안내 설정', '글자 크기 조정', '고대비 모드'], icon: Icons.settings),
+    _Feature('의약품 검색하기', Icons.search, (ctx) => SearchScreen()),
+    _Feature('처방전 약봉투 분석', Icons.upload_file, (ctx) => UploadPageScreen()),
+    _Feature('약 상자 인식', Icons.qr_code_scanner, (ctx) => BoxScreen()),
+    _Feature('처방전 약봉투 보관함', Icons.folder, (ctx) => KeepingScreen()),
+    _Feature('설정', Icons.settings, (ctx) => const SettingsScreen()),
   ];
 
-  void _showOptions(BuildContext context, _Feature feature) {
-    if (feature.title == "설정") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-      return;
-    }
-    if (feature.title == "알약 검색하기") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => SearchScreen()));
-      return;
-    }
-    if (feature.title == "처방전 업로드") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => UploadPageScreen()));
-      return;
-    }
-    if (feature.title == "약 상자 인식") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => BoxScreen()));
-      return;
-    }
-    if (feature.title == "복약 관리") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ManageScreen()));
-      return;
-    }
-    if (feature.title == "약물 안전성 검사") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => SafetyScreen()));
-      return;
-    }
-    if (feature.title == "보관함") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => KeepingScreen()));
-      return;
-    }
-    if (feature.title == "AI 챗봇") {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatbotScreen()));
-      return;
-    }
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _speak(context, '메인 화면입니다. 원하는 기능을 선택하세요.');
+    });
+  }
+
+  Future<void> _speak(BuildContext ctx, String text) async {
+    try {
+      await tts_opt.TTSService().speak(text);
+    } catch (_) {}
+  }
+
+  Future<void> _onTapFeature(BuildContext context, _Feature feature) async {
+    HapticFeedback.lightImpact();
+    await _speak(context, '${feature.title} 화면으로 이동합니다.');
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(builder: feature.routeBuilder));
+  }
+
+  // 버튼 위젯 리스트 생성 (중복 방지)
+  List<Widget> _buildButtons() {
+    return List.generate(features.length, (index) {
+      final feature = features[index];
+      return _OrangeTallButton(
+        title: feature.title,
+        icon: feature.icon,
+        onTap: () => _onTapFeature(context, feature),
+        onLongPress: () => _speak(context, feature.title),
+      );
+    });
   }
 
   @override
@@ -72,21 +73,53 @@ class _MainScreenState extends State<MainScreen> {
       builder: (context, theme, child) {
         return AccessibleScaffold(
           title: 'Pillypilly',
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                for (int i = 0; i < features.length; i++) ...[
-                  AccessibleButton(
-                    label: features[i].title,
-                    icon: features[i].icon,
-                    hint: '${features[i].title} 기능을 실행합니다',
-                    onPressed: () => _showOptions(context, features[i]),
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              // 콘텐츠의 대략적 총 높이 계산 (버튼 높이 추정 + 간격 + 패딩)
+              const double itemHeight = 88; // _OrangeTallButton의 패딩/폰트 기준 추정
+              const double spacing = 16;
+              const double verticalPadding = 20 * 2;
+
+              final double estimated =
+                  features.length * itemHeight +
+                  (features.length - 1) * spacing +
+                  verticalPadding;
+
+              final bool canCenter = estimated <= constraints.maxHeight;
+
+              if (canCenter) {
+                // 화면에 여유가 있으면 "가운데 정렬" (폰마다 자동 중앙 배치)
+                return Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (int i = 0; i < features.length; i++) ...[
+                            _buildButtons()[i],
+                            if (i != features.length - 1)
+                              const SizedBox(height: spacing),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                  if (i != features.length - 1) const SizedBox(height: 20),
-                ],
-              ],
-            ),
+                );
+              } else {
+                // 공간이 부족하면 "스크롤 리스트"
+                return Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: ListView.separated(
+                    itemCount: features.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: spacing),
+                    itemBuilder: (context, index) =>
+                        _buildButtons()[index],
+                  ),
+                );
+              }
+            },
           ),
         );
       },
@@ -94,31 +127,99 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-class _Feature {
+class _OrangeTallButton extends StatefulWidget {
   final String title;
-  final List<String> options;
   final IconData icon;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
-  _Feature({required this.title, required this.options, required this.icon});
+  const _OrangeTallButton({
+    Key? key,
+    required this.title,
+    required this.icon,
+    required this.onTap,
+    this.onLongPress,
+  }) : super(key: key);
+
+  @override
+  State<_OrangeTallButton> createState() => _OrangeTallButtonState();
 }
 
-class PlaceholderPage extends StatelessWidget {
-  final String title;
+class _OrangeTallButtonState extends State<_OrangeTallButton> {
+  bool _pressed = false;
 
-  const PlaceholderPage({Key? key, required this.title}) : super(key: key);
+  static const Color kOrange = Color(0xFFFF7A00);
+  static const Color kOrangePressed = Color(0xFFE66E00);
+  static const Color kShadow = Colors.black26;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: Center(
-        child: Text(
-          title,
-          style: const TextStyle(fontSize: 24),
+    return Semantics(
+      button: true,
+      label: widget.title,
+      hint: '두 번 탭하면 열립니다. 길게 누르면 음성 안내가 재생됩니다.',
+      child: Listener(
+        onPointerDown: (_) => setState(() => _pressed = true),
+        onPointerUp: (_) => setState(() => _pressed = false),
+        onPointerCancel: (_) => setState(() => _pressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+          decoration: BoxDecoration(
+            color: _pressed ? kOrangePressed : kOrange,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: kShadow,
+                blurRadius: _pressed ? 2 : 8,
+                offset: Offset(0, _pressed ? 1 : 4),
+              ),
+            ],
+          ),
+          child: InkWell(
+            onTap: widget.onTap,
+            onLongPress: () {
+              HapticFeedback.selectionClick();
+              widget.onLongPress?.call();
+            },
+            borderRadius: BorderRadius.circular(18),
+            splashColor: Colors.white24,
+            highlightColor: Colors.white10,
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(widget.icon, size: 36, color: Colors.white),
+                  const SizedBox(width: 16),
+                  Flexible(
+                    child: Text(
+                      widget.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20 * context.watch<ThemeService>().fontScale,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                        color: Colors.white,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
+}
+
+class _Feature {
+  final String title;
+  final IconData icon;
+  final Widget Function(BuildContext) routeBuilder;
+
+  _Feature(this.title, this.icon, this.routeBuilder);
 }

@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import 'package:provider/provider.dart';
+import 'package:pillypilly_h/services/theme_service.dart';
 
 class AppTextStyles {
-  static const chatUser = TextStyle(
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-  );
+  static TextStyle title(BuildContext ctx) =>
+      Provider.of<ThemeService>(ctx, listen: false).titleStyle;
 
-  static const chatBot = TextStyle(
-    color: AppColors.textPrimary,
-    fontSize: 16,
-  );
+  static TextStyle subtitle(BuildContext ctx) =>
+      Provider.of<ThemeService>(ctx, listen: false).subtitleTextStyle;
 
-  static const input = TextStyle(
-    color: AppColors.textPrimary,
-    fontSize: 18,
-  );
+  static TextStyle body(BuildContext ctx) =>
+      Provider.of<ThemeService>(ctx, listen: false).bodyTextStyle;
+
+  static TextStyle largeButton(BuildContext ctx) =>
+      Provider.of<ThemeService>(ctx, listen: false).buttonTextStyle;
+
+  // 챗봇 등에서 사용하던 이름 유지
+  static TextStyle get chatUser => const TextStyle(fontWeight: FontWeight.w700);
+  static TextStyle get chatBot => const TextStyle(fontWeight: FontWeight.w500);
+  static TextStyle get input => const TextStyle(fontSize: 16);
 }

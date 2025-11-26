@@ -45,8 +45,14 @@ class AccessibleButton extends StatelessWidget {
             child: ElevatedButton.icon(
               icon: Icon(icon, size: 32, color: theme.buttonTextColor),
               label: Padding(
-                padding: padding ?? const EdgeInsets.symmetric(vertical: 24.0),
-                child: Text(label, style: txtStyle),
+                padding: padding ?? const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  label,
+                  style: txtStyle,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: bgColor, // ✅ 외부에서 받은 색 우선

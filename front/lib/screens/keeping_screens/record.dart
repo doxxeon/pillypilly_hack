@@ -46,14 +46,14 @@ class _RecordScreenState extends State<RecordScreen> {
 
   Future<void> _announceRecordCount(ThemeService theme) async {
     if (theme.isVoiceGuideEnabled) {
-      await tts.speak("총 ${records.length}개의 검색 이력이 있습니다.");
+    await tts.speak("총 ${records.length}개의 검색 이력이 있습니다.");
     }
   }
 
   Future<void> _speakDrugInfo(Map<String, String> record, ThemeService theme) async {
     if (theme.isVoiceGuideEnabled) {
-      final msg = "${record['drug']} 약품. ${record['method']}으로 검색됨. ${record['date']}에 검색.";
-      await tts.speak(msg);
+    final msg = "${record['drug']} 약품. ${record['method']}으로 검색됨. ${record['date']}에 검색.";
+    await tts.speak(msg);
     }
   }
 
@@ -62,7 +62,7 @@ class _RecordScreenState extends State<RecordScreen> {
       Vibration.vibrate(duration: 200);
       setState(() => records.clear());
       if (theme.isVoiceGuideEnabled) {
-        await tts.speak("검색 이력이 모두 삭제되었습니다.");
+      await tts.speak("검색 이력이 모두 삭제되었습니다.");
       }
     }
   }
@@ -73,15 +73,15 @@ class _RecordScreenState extends State<RecordScreen> {
       builder: (context, theme, child) {
         return AccessibleScaffold(
           title: '검색 이력',
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.delete_forever),
-              tooltip: '모두 삭제',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_forever),
+            tooltip: '모두 삭제',
               onPressed: () => _deleteAllRecords(theme),
-            ),
-          ],
-          body: records.isEmpty
-              ? Center(
+          ),
+        ],
+      body: records.isEmpty
+          ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -92,44 +92,44 @@ class _RecordScreenState extends State<RecordScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '검색 이력이 없습니다.',
+                  '검색 이력이 없습니다.',
                         style: theme.bodyTextStyle.copyWith(
                           fontSize: 20 * theme.fontScale,
-                        ),
+                ),
                       ),
                     ],
-                  ),
-                )
-              : ListView.builder(
+              ),
+            )
+          : ListView.builder(
                   padding: const EdgeInsets.all(16.0),
-                  itemCount: records.length,
-                  itemBuilder: (context, index) {
-                    final record = records[index];
+              itemCount: records.length,
+              itemBuilder: (context, index) {
+                final record = records[index];
                     return Card(
                       color: theme.buttonColor,
                       margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        title: Text(
+                    child: ListTile(
+                      title: Text(
                           record['drug']!,
                           style: theme.buttonTextStyle.copyWith(
                             fontSize: 18 * theme.fontScale,
                           ),
-                        ),
-                        subtitle: Text(
-                          '${record['method']} • ${record['date']}',
+                      ),
+                      subtitle: Text(
+                        '${record['method']} • ${record['date']}',
                           style: theme.bodyTextStyle.copyWith(
                             fontSize: 14 * theme.fontScale,
                             color: theme.buttonTextColor.withOpacity(0.7),
                           ),
-                        ),
+                    ),
                         onTap: () {
                           Vibration.vibrate(duration: 100);
                           _speakDrugInfo(record, theme);
                         },
-                      ),
-                    );
-                  },
-                ),
+                  ),
+                );
+              },
+            ),
         );
       },
     );

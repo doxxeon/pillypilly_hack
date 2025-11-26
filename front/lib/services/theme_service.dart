@@ -1,129 +1,67 @@
 import 'package:flutter/material.dart';
-import 'settings_service.dart';
+import 'package:pillypilly_h/services/settings_service.dart';
 
+/// 전역 UI/접근성 상태를 관리하는 ChangeNotifier
 class ThemeService extends ChangeNotifier {
-  static ThemeService? _instance;
-  static ThemeService get instance => _instance ??= ThemeService._();
-  
-  ThemeService._() {
-    _loadSettings();
-  }
+  // ====== 접근성 상태 ======
+  bool _isVoiceGuideEnabled = true; // 음성 안내
+  double _fontScale = 1.0;          // 글자 배율 (옵션)
+  bool _isHighContrast = false;     // 고대비 (옵션)
 
-  bool _isVoiceGuideEnabled = true;
-  bool _isHighContrastEnabled = false;
-  double _fontScale = 1.0;
-
-  // ✅ 기존 getter 유지
+  // ====== 공개 getter ======
   bool get isVoiceGuideEnabled => _isVoiceGuideEnabled;
-  bool get isHighContrastEnabled => _isHighContrastEnabled;
   double get fontScale => _fontScale;
+  bool get isHighContrastEnabled => _isHighContrast;
+  
 
-  // ✅ BoxScreen 등에서 쓰는 단축 alias 추가
-  bool get isHighContrast => _isHighContrastEnabled;
-
-  // ===============================
-  // 🎨 색상 테마
-  // ===============================
-  Color get primaryColor => _isHighContrastEnabled ? Colors.amber[700]! : Colors.amber[700]!;
-  Color get backgroundColor => _isHighContrastEnabled ? Colors.black : Colors.white;
-  Color get textColor => _isHighContrastEnabled ? Colors.yellowAccent : Colors.black;
-  Color get buttonColor => _isHighContrastEnabled ? Colors.amber[700]! : Colors.amber[700]!;
-  Color get buttonTextColor => _isHighContrastEnabled ? Colors.black : Colors.black;
-
-  // ===============================
-  // 🔤 텍스트 스타일
-  // ===============================
-  TextStyle get titleStyle => TextStyle(
-    fontSize: 26 * _fontScale,
-    fontWeight: FontWeight.bold,
-    color: textColor,
-  );
-
-  TextStyle get appBarTitleStyle => TextStyle(
-    fontSize: 22 * _fontScale,
-    fontWeight: FontWeight.bold,
-    color: textColor,
-  );
-
-  TextStyle get buttonTextStyle => TextStyle(
-    fontSize: 20 * _fontScale,
-    fontWeight: FontWeight.bold,
-    color: buttonTextColor,
-  );
-
-  TextStyle get bodyTextStyle => TextStyle(
-    fontSize: 16 * _fontScale,
-    color: textColor,
-  );
-
-  TextStyle get subtitleTextStyle => TextStyle(
-    fontSize: 14 * _fontScale,
-    color: textColor.withOpacity(0.7),
-  );
-
-  // ===============================
-  // ⚙️ 설정 로드 및 업데이트
-  // ===============================
-  Future<void> _loadSettings() async {
+  // ====== 앱 시작 시 저장값 로드 ======
+  Future<void> loadSettings() async {
     _isVoiceGuideEnabled = await SettingsService.isVoiceGuideEnabled();
-    _isHighContrastEnabled = await SettingsService.isHighContrastEnabled();
     _fontScale = await SettingsService.getFontScale();
+    _isHighContrast = await SettingsService.isHighContrastEnabled();
     notifyListeners();
   }
 
-  Future<void> updateVoiceGuide(bool enabled) async {
+  // ====== 음성 안내 토글 ======
+  Future<void> toggleVoiceGuide(bool enabled) async {
     _isVoiceGuideEnabled = enabled;
     await SettingsService.setVoiceGuideEnabled(enabled);
     notifyListeners();
   }
 
+  // ====== (선택) 글자 배율/고대비도 함께 관리 가능 ======
+  Future<void> updateFontScale(double scale) async {
+    _fontScale = scale.clamp(0.8, 2.0);
+    await SettingsService.setFontScale(_fontScale);
+    notifyListeners();
+  }
+
   Future<void> updateHighContrast(bool enabled) async {
-    _isHighContrastEnabled = enabled;
+    _isHighContrast = enabled;
     await SettingsService.setHighContrastEnabled(enabled);
     notifyListeners();
   }
 
-  Future<void> updateFontScale(double scale) async {
-    _fontScale = scale;
-    await SettingsService.setFontScale(scale);
-    notifyListeners();
-  }
+  // ====== (옵션) 색/텍스트 스타일 – 간단 기본값 제공 ======
+  // 시인성 높은 쨍한 오렌지 계열(주황)
+  Color get primaryColor => const Color(0xFFFF6A00);
+  Color get backgroundColor => isHighContrastEnabled ? Colors.black : const Color(0xFFF8F8F8);
+  Color get textColor => isHighContrastEnabled ? Colors.white : const Color(0xFF111111);
+  Color get buttonColor => primaryColor;
+  Color get buttonTextColor => isHighContrastEnabled ? Colors.black : Colors.white;
 
-  Future<void> refreshSettings() async {
-    await _loadSettings();
-  }
-}
+  TextStyle get titleStyle =>
+      TextStyle(fontSize: 22 * fontScale, fontWeight: FontWeight.w700, color: textColor);
 
-// ===============================
-// 🎨 AppColors (ThemeService와 호환)
-// ===============================
-class AppColors {
-  static Color background(BuildContext context) =>
-      ThemeService.instance.backgroundColor;
-  static Color primary(BuildContext context) =>
-      ThemeService.instance.primaryColor;
-  static Color accent(BuildContext context) =>
-      ThemeService.instance.buttonColor;
-  static Color confirm(BuildContext context) =>
-      ThemeService.instance.primaryColor;
-  static Color error(BuildContext context) => Colors.red[700]!;
-  static Color errorLight(BuildContext context) => Colors.red[50]!;
-  static Color textPrimary(BuildContext context) =>
-      ThemeService.instance.textColor;
-  static Color card(BuildContext context) =>
-      ThemeService.instance.backgroundColor.withOpacity(0.95);
-}
+  TextStyle get bodyTextStyle =>
+      TextStyle(fontSize: 16 * fontScale, fontWeight: FontWeight.w500, color: textColor);
 
-// ===============================
-// 🔤 AppTextStyles (동적 폰트배율 반영)
-// ===============================
-class AppTextStyles {
-  static TextStyle largeButton(BuildContext context) =>
-      ThemeService.instance.buttonTextStyle;
+  TextStyle get subtitleTextStyle =>
+      TextStyle(fontSize: 14 * fontScale, fontWeight: FontWeight.w400, color: textColor.withOpacity(0.7));
 
-  static TextStyle title(BuildContext context) =>
-      ThemeService.instance.titleStyle;
+  TextStyle get appBarTitleStyle =>
+      TextStyle(fontSize: 20 * fontScale, fontWeight: FontWeight.w700, color: Colors.white);
 
-  static TextStyle body(BuildContext context) =>
-      ThemeService.instance.bodyTextStyle;
+  TextStyle get buttonTextStyle =>
+      TextStyle(fontSize: 18 * fontScale, fontWeight: FontWeight.w700, color: buttonTextColor);
 }

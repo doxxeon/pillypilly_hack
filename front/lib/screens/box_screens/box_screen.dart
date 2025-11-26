@@ -4,7 +4,7 @@ import '../../services/theme_service.dart';
 import '../../widgets/accessible_scaffold.dart';
 import '../../widgets/accessible_button.dart';
 import 'box_qr.dart';
-import 'box_ocr.dart';
+import 'box_exp.dart'; // ✅ 유통기한 인식 페이지
 
 class BoxScreen extends StatefulWidget {
   const BoxScreen({Key? key}) : super(key: key);
@@ -18,75 +18,61 @@ class _BoxScreenState extends State<BoxScreen> {
   Widget build(BuildContext context) {
     return Consumer<ThemeService>(
       builder: (context, theme, child) {
-        final double fontScale = theme.fontScale;
-        final bool isContrast = theme.isHighContrast;
-
-        // 고대비 모드 색상
-        final Color bgColor = isContrast ? Colors.black : Colors.white;
-        final Color textColor = isContrast ? Colors.yellowAccent : Colors.black;
-        final Color buttonColor = isContrast ? Colors.amberAccent : Colors.blue;
-
         return AccessibleScaffold(
           title: '약 상자 인식',
-          backgroundColor: bgColor,
           body: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // ✅ 바코드/QR 버튼
+                  // ✅ 1. QR / 바코드 인식 버튼
                   AccessibleButton(
-                    label: '바코드 / QR 찍기',
+                    label: 'QR / 바코드 인식',
                     icon: Icons.qr_code_scanner,
-                    hint: '바코드나 QR 코드를 스캔합니다',
+                    hint: '약 상자의 QR 코드나 바코드를 찍어서 의약품 상세 설명을 들려드립니다',
                     width: double.infinity,
                     height: 70,
-                    backgroundColor: buttonColor,
-                    textStyle: TextStyle(
-                      fontSize: 20 * fontScale,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const BoxQrScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const BoxQrScreen(), // ✅ 의약품 상세설명 흐름
+                        ),
                       );
                     },
                   ),
 
                   const SizedBox(height: 30),
 
-                  // ✅ OCR 텍스트 인식 버튼
+                  // ✅ 2. 유통기한 인식 버튼
                   AccessibleButton(
-                    label: '텍스트 (OCR) 인식',
-                    icon: Icons.text_fields,
-                    hint: '약 상자의 텍스트를 인식합니다',
+                    label: '유통기한 인식',
+                    icon: Icons.date_range,
+                    hint:
+                        '약 상자의 유통기한을 인식한 뒤, 오늘 날짜와 비교해서 기한이 지났는지 안내합니다',
                     width: double.infinity,
                     height: 70,
-                    backgroundColor: buttonColor,
-                    textStyle: TextStyle(
-                      fontSize: 20 * fontScale,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const BoxOcrScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const BoxExpScreen(), // ✅ 유통기한 안내 흐름
+                        ),
                       );
                     },
                   ),
 
                   const SizedBox(height: 40),
 
-                  // 💡 음성안내 및 접근성 보조 텍스트
+                  // 💬 시각장애인용 안내 문구
                   Text(
-                    '카메라를 약 상자에 가까이 가져가면 자동으로 인식됩니다.',
+                    '첫 번째 버튼은 QR/바코드를 찍어 약 이름과 효능, 복용법을 설명해 줍니다.\n'
+                    '두 번째 버튼은 유통기한을 읽어 오늘 날짜와 비교해, 이미 지난 약인지 알려줍니다.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16 * fontScale,
-                      color: isContrast ? Colors.yellow : Colors.grey.shade600,
+                    style: theme.bodyTextStyle.copyWith(
+                      fontSize: 16 * theme.fontScale,
                     ),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

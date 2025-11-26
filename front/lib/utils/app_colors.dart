@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:pillypilly_h/services/theme_service.dart';
 
 class AppColors {
-  static const background = Color(0xFFF5F5F5);
-  static const accent = Color(0xFF4A90E2);
-  static const card = Color(0xFFFFFFFF);
-  static const textPrimary = Color(0xFF000000);
-  static const textSecondary = Color(0xFF666666);
+  static Color primary(BuildContext ctx) =>
+      Provider.of<ThemeService>(ctx, listen: false).primaryColor;
+
+  static Color background(BuildContext ctx) =>
+      Provider.of<ThemeService>(ctx, listen: false).backgroundColor;
+
+  static Color textPrimary(BuildContext ctx) =>
+      Provider.of<ThemeService>(ctx, listen: false).textColor;
+
+  static Color accent(BuildContext ctx) => primary(ctx);
+
+  static Color card(BuildContext ctx) =>
+      Provider.of<ThemeService>(ctx, listen: false).isHighContrastEnabled
+          ? Colors.white
+          : Colors.white;
+
+  static Color error(BuildContext ctx) => Colors.red.shade600;
+  static Color errorLight(BuildContext ctx) => Colors.red.shade100;
+
+  static Color confirm(BuildContext ctx) => Colors.green.shade600;
 }

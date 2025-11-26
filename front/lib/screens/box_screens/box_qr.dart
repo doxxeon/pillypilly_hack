@@ -1,5 +1,4 @@
 // lib/screens/box_screens/box_qr.dart
-import 'dart:math';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import 'package:vibration/vibration.dart';
 import 'package:pillypilly_h/api_services/api_helper.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../details/drug_detail.dart';
 
 class BoxQrScreen extends StatefulWidget {
   const BoxQrScreen({super.key});
@@ -255,31 +255,43 @@ class _BoxQrScreenState extends State<BoxQrScreen> {
       final firstResult = results[firstKey] ?? {};
 
       final permitDetail = firstResult['permit']?['permitDetail'] ?? {};
-      final edrug = firstResult['edrug'] ?? {};
-      final dur = firstResult['dur'] ?? {};
+      final permitList = firstResult['permit']?['permitList'] ?? {};
+      
+      // itemSeq 추출 (여러 경로 시도)
+      final itemSeq = permitDetail["ITEM_SEQ"]?.toString() ?? 
+                      permitList["itemSeq"]?.toString() ?? 
+                      firstKey.toString();
 
-      // 🧩 drug_detail.dart와 동일한 구조로 변환
-      final transformed = {
-        "itemSeq": permitDetail["ITEM_SEQ"],
-        "itemName": permitDetail["ITEM_NAME"],
-        "entpName": permitDetail["ENTP_NAME"],
-        "chart": permitDetail["CHART"],
-        "efficacy": edrug["effect"] ?? [],
-        "dosage": edrug["dosage"] ?? [],
-        "precautions": edrug["precautions"] ?? [],
-        "sideEffects": edrug["sideEffects"] ?? [],
-        "dur": dur,
-        "raw": res.data, // 필요 시 전체 원본도 함께 전달
-      };
+      debugPrint("🔍 추출된 itemSeq: $itemSeq");
+
+      if (itemSeq.isEmpty) {
+        await _tts.speak("약 코드를 찾을 수 없습니다.");
+        _restartStreamWithHint();
+        return;
+      }
 
       await _tts.speak("약 정보를 찾았습니다.");
 
       if (!mounted) return;
 
-      Navigator.pushReplacementNamed(
+      // itemSeq를 포함한 데이터 전달 (DrugDetailScreen이 다시 API 호출)
+      final drugInfo = {
+        "itemSeq": itemSeq,
+        "ITEM_SEQ": itemSeq,
+        "itemName": permitDetail["ITEM_NAME"] ?? permitList["itemName"],
+        "ITEM_NAME": permitDetail["ITEM_NAME"] ?? permitList["itemName"],
+        "entpName": permitDetail["ENTP_NAME"] ?? permitList["entpName"],
+        "ENTP_NAME": permitDetail["ENTP_NAME"] ?? permitList["entpName"],
+      };
+
+      // 직접 DrugDetailScreen으로 이동 (더 안정적)
+      Navigator.pushReplacement(
         context,
-        '/drug_detail',
-        arguments: {'drugInfo': transformed},
+        MaterialPageRoute(
+          builder: (_) => DrugDetailScreen(
+            initialDrugInfo: drugInfo,
+          ),
+        ),
       );
     } else {
       await _tts.speak("약 정보를 찾지 못했습니다. 상태 코드 ${res.statusCode}");
