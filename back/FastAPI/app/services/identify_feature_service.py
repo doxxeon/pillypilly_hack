@@ -1,4 +1,4 @@
-#FastAPI\app\services\identify_feature_service.py
+# app/services/identify_feature_service.py
 from fastapi import HTTPException, Request
 from app.utils.logger import logger
 from app.db.mongodb import itentify_all_collection, searchlog_collection
@@ -6,6 +6,9 @@ from app.db.models import SearchLog
 from pymongo import ASCENDING
 import re
 
+# ──────────────────────────────────────────────
+# 특징 기반 알약 검색
+# ──────────────────────────────────────────────
 async def fetch_pills_by_features(
     request: Request,
     item_seq: str = None, 
@@ -59,7 +62,7 @@ async def fetch_pills_by_features(
 
         # 로그 기록
         query_log = {"source": "identify"}
-        if item_seq: query_log["item_seq"] = item_seq  # ✅ 로그에도 포함
+        if item_seq: query_log["item_seq"] = item_seq
         if print_front: query_log["print_front"] = print_front
         if print_back: query_log["print_back"] = print_back
         if drug_shape: query_log["drug_shape"] = drug_shape

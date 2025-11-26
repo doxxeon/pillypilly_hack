@@ -1,4 +1,4 @@
-#FastAPI\app\utils\model_utils.py
+# app/utils/model_utils.py
 from PIL import Image
 import numpy as np
 from sklearn.cluster import KMeans
@@ -6,6 +6,9 @@ from numpy import dot
 from numpy.linalg import norm
 from collections import Counter
 
+# ──────────────────────────────────────────────
+# 주요 색상 추출
+# ──────────────────────────────────────────────
 def get_dominant_color(image: Image.Image, crop_ratio: float = 0.3, k: int = 3):
     img_np = np.array(image.convert("RGB"))
     h, w, _ = img_np.shape
@@ -28,6 +31,9 @@ def get_dominant_color(image: Image.Image, crop_ratio: float = 0.3, k: int = 3):
     dominant_color = kmeans.cluster_centers_[dominant_cluster]
     return tuple(map(int, dominant_color))
 
+# ──────────────────────────────────────────────
+# 색상 유사도 계산
+# ──────────────────────────────────────────────
 def calculate_color_similarity(color1: tuple, color2, mode: str = "mse") -> float:
     """
     color1: (3,) shape

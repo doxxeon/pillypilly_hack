@@ -1,3 +1,4 @@
+# app/utils/ocr_utils.py
 import os
 import io
 import re
@@ -6,10 +7,15 @@ from PIL import Image
 from google.cloud import vision
 from app.core.config import settings
 
-# Google Cloud Vision API 인증 키 경로 설정
+# ──────────────────────────────────────────────
+# Google Cloud Vision API 설정
+# ──────────────────────────────────────────────
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.ocr_key_path
 vision_client = vision.ImageAnnotatorClient()
 
+# ──────────────────────────────────────────────
+# 텍스트 인식 (OCR)
+# ──────────────────────────────────────────────
 def detect_text_pill(image: Image.Image) -> List[str]:
     """
     입력된 이미지에서 텍스트 인식 (OCR) 후 키워드 리스트 반환
@@ -30,7 +36,6 @@ def detect_text_pill(image: Image.Image) -> List[str]:
 
     raw_keywords = texts[0].description.strip().split()
 
-    # 리스트 컴프리헨션으로 필터링: 'pill' 또는 '숫자+%' 제거
     keywords = [
         word.upper()
         for word in raw_keywords

@@ -9,20 +9,23 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.errors import ExternalApiError
 from app.db.mongodb import edrug_collection
 
-# ─────────────────────────────────────────────
-# (옵션) 인메모리 캐시: 기존 동작 유지
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────
+# 캐시 설정
+# ──────────────────────────────────────────────
 USE_CACHE = os.getenv("EDRUG_USE_CACHE", "true").lower() == "true"
 CACHE_TTL_MIN = int(os.getenv("EDRUG_CACHE_TTL_MIN", "60"))
 _CACHE: Dict[str, Tuple[datetime, Dict[str, Any]]] = {}
 
+# ──────────────────────────────────────────────
+# 텍스트 처리 함수
+# ──────────────────────────────────────────────
 def split_text(text: Optional[str]) -> List[str]:
     if text is None:
         return []
     s = str(text).strip()
     if not s or s.lower() == "nan":
         return []
-    # 줄바꿈 단위로 리스트화 (프론트 스키마 유지)
+    
     return [line.strip() for line in s.split("\n") if line.strip()]
 
 def _cache_get(item_seq: str) -> Optional[Dict[str, Any]]:
@@ -62,7 +65,6 @@ async def get_edrug_info(item_seq: str) -> Dict[str, Any]:
             _cache_put(item_seq, result)
             return result
 
-        # DB의 대문자 키만 사용
         result = {
             "itemName": doc.get("ITEM_NAME"),
             "effect":       split_text(doc.get("EFCY_QES_ITM")),
@@ -77,6 +79,5 @@ async def get_edrug_info(item_seq: str) -> Dict[str, Any]:
         return result
 
     except Exception as e:
-        # 기존 예외 래핑 정책 유지
         raise ExternalApiError("eDrug failure", status_code=502,
                                context={"endpoint": "e_drug_db", "msg": str(e)})

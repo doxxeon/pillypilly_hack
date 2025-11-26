@@ -14,7 +14,9 @@ from fastapi import HTTPException
 
 from app.db.crud.image_scrape_cache import get_meta, open_stream_by_item_seq, save_bytes
 
-# User-Agent 및 기본 URL
+# ──────────────────────────────────────────────
+# 기본 설정
+# ──────────────────────────────────────────────
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PillResolverBot/1.0"
 BASE_MFDS = "https://nedrug.mfds.go.kr"
 

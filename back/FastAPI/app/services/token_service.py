@@ -1,4 +1,4 @@
-#\FastAPI\app\services\token_service.py
+# app/services/token_service.py
 # JWT 발급/검증 (Access/Refresh 분리)
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
@@ -8,16 +8,24 @@ from fastapi import HTTPException
 
 ALGO = settings.jwt_algorithm
 
+# ──────────────────────────────────────────────
+# 유틸리티 함수
+# ──────────────────────────────────────────────
 def _now():
     return datetime.now(timezone.utc)
 
 def _hmac_sha256(secret: str, data: str) -> str:
     return hmac.new(secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha256).hexdigest()
 
+# ──────────────────────────────────────────────
+# 토큰 해시 함수
+# ──────────────────────────────────────────────
 def hash_refresh_token(plain: str) -> str:
-    # 서버 비밀키로 HMAC → DB에는 해시만 저장(평문 저장 금지)
     return f"sha256:{_hmac_sha256(settings.jwt_refresh_secret_key, plain)}"
 
+# ──────────────────────────────────────────────
+# 액세스 토큰 생성
+# ──────────────────────────────────────────────
 def create_access_token(*, user_id: str, sid: str) -> str:
     exp = _now() + timedelta(minutes=settings.jwt_exp_minutes)
     payload = {

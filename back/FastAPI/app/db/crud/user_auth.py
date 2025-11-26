@@ -17,7 +17,7 @@ async def upsert_anonymous_user(user_id: str, request: Request):
             {"user_id": user_id},
             {"$set": {"last_access": now}}
         )
-        # ✅ 재방문 로그
+        # 재방문 로그
         logger_auth.info(
             f"[AUTH - 재발급 사용자] USER_ID={user_id} IP={request.client.host} UA={request.headers.get('user-agent')}"
         )
@@ -30,7 +30,7 @@ async def upsert_anonymous_user(user_id: str, request: Request):
             "ip_address": request.client.host,
             "user_agent": request.headers.get("user-agent"),
         })
-        # ✅ 신규 접속 로그
+        # 신규 접속 로그
         logger_auth.info(
             f"[AUTH - 신규 사용자] USER_ID={user_id} IP={request.client.host} UA={request.headers.get('user-agent')}"
         )

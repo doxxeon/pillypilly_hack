@@ -1,11 +1,10 @@
-# 로그 저장
 # app/utils/logger.py
 import logging
 from logging.handlers import RotatingFileHandler
 
-# ─────────────────────────────
+# ──────────────────────────────────────────────
 # 로거 설정
-# ─────────────────────────────
+# ──────────────────────────────────────────────
 # 전역 로거
 logger = logging.getLogger("uvicorn")
 logger.setLevel(logging.DEBUG)
@@ -16,18 +15,17 @@ if not logger.handlers:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-# 챗봇
+# 챗봇 로거
 logger_gemini = logging.getLogger("gemini_logger")
 logger_gemini.setLevel(logging.INFO)
 
 if not logger_gemini.hasHandlers():
-    file_handler = logging.FileHandler("logs/gemini_chat.log", encoding='utf-8')  # 💡 다른 파일명
+    file_handler = logging.FileHandler("logs/gemini_chat.log", encoding='utf-8')
     formatter = logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
     logger_gemini.addHandler(file_handler)
 
-
-# 약제 정보
+# 약제 정보 로거
 logger_drugs = logging.getLogger("drugs_logger")
 logger_drugs.setLevel(logging.INFO)
 
@@ -58,7 +56,7 @@ if not logger_auth.hasHandlers():
     logger_auth.addHandler(file_handler)
 
 
-#모델 알고리즘
+#이미지 모델
 logger_model = logging.getLogger("model_logger")
 logger_model.setLevel(logging.INFO)
 if not logger_model.hasHandlers():
@@ -66,6 +64,33 @@ if not logger_model.hasHandlers():
     formatter = logging.Formatter("%(asctime)s | %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
     logger_model.addHandler(file_handler)
+
+# 처방전 OCR 모델
+logger_prescription = logging.getLogger("prescription_logger")
+logger_prescription.setLevel(logging.INFO)
+if not logger_prescription.hasHandlers():
+    file_handler = logging.FileHandler("logs/prescription_ocr.log", encoding="utf-8")
+    formatter = logging.Formatter("%(asctime)s | %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    logger_prescription.addHandler(file_handler)
+
+# 약봉투 분할 OCR 모델
+logger_drugbag = logging.getLogger("drugbag_logger")
+logger_drugbag.setLevel(logging.INFO)
+if not logger_drugbag.hasHandlers():
+    file_handler = logging.FileHandler("logs/drugbag_ocr.log", encoding="utf-8")
+    formatter = logging.Formatter("%(asctime)s | %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    logger_drugbag.addHandler(file_handler)
+
+# 유통기한 추출 모델
+logger_dateex = logging.getLogger("dateex_logger")
+logger_dateex.setLevel(logging.INFO)
+if not logger_dateex.hasHandlers():
+    file_handler = logging.FileHandler("logs/dateex.log", encoding="utf-8")
+    formatter = logging.Formatter("%(asctime)s | %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    logger_dateex.addHandler(file_handler)
 
 # 에러
 logger_error = logging.getLogger("error_logger")

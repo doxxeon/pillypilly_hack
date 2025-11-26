@@ -1,6 +1,6 @@
+# app/core/dependencies.py
 # DB 또는 인증 등의 공통 의존성 관리
 
-# 📁 app/core/dependencies.py
 from typing import Optional
 from fastapi import Request, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -9,15 +9,15 @@ from app.db.mongodb import db, auth_collection, refresh_tokens_collection
 from app.services.token_service import verify_access_token
 from app.core.config import settings
 
-# -----------------------------
-# DB 주입
-# -----------------------------
+# ──────────────────────────────────────────────
+# DB 의존성
+# ──────────────────────────────────────────────
 def get_db():
     return db
 
-# -----------------------------
-# 공통: 차단 여부 검사 유틸
-# -----------------------------
+# ──────────────────────────────────────────────
+# 사용자 차단 여부 검사
+# ──────────────────────────────────────────────
 async def _ensure_not_blocked(user_id: str) -> None:
     if not user_id:
         raise HTTPException(status_code=401, detail="유효하지 않은 사용자 식별자")
@@ -36,16 +36,10 @@ security = HTTPBearer()
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     token = credentials.credentials
     try:
-        payload = verify_access_token(token)  # ✅ Access 전용 검증
+        payload = verify_access_token(token)  #Access 전용 검증
         user_id: Optional[str] = payload.get("sub")
         sid: Optional[str] = payload.get("sid")
         await _ensure_not_blocked(user_id)
-
-        # (선택 강화) 세션 무효화 체크:
-        # - refresh_tokens에 동일 sid가 하나도 없으면(전부 만료/폐기) access도 무효로 볼 수 있음.
-        # count = await refresh_tokens_collection.count_documents({"sid": sid, "revoked": False})
-        # if count == 0:
-        #     raise HTTPException(status_code=401, detail="세션이 만료되었습니다.")
 
         return user_id
     except ValueError:

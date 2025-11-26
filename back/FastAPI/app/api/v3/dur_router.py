@@ -1,5 +1,7 @@
+# app/api/v3/dur_router.py
 from fastapi import APIRouter, HTTPException, Request, Depends
 from typing import Callable, Awaitable, Dict, Any
+
 from app.services.dur_service import (
     get_dur_elderly,
     get_dur_age,
@@ -11,11 +13,11 @@ from app.services.dur_service import (
 from app.core.dependencies import get_current_user
 from app.db.crud.user_auth import upsert_anonymous_user
 
-
 router = APIRouter()
 
-
+# ──────────────────────────────────────────────
 # 카테고리별 함수 매핑 (한글/영문/동의어 지원)
+# ──────────────────────────────────────────────
 _CATEGORY_HANDLERS: Dict[str, Callable[[str], Awaitable[Any]]] = {
     # 병용금기
     "combination": get_dur_combination,
@@ -53,9 +55,9 @@ async def get_dur_by_category(
     user_id: str = Depends(get_current_user),
 ):
     """
-    금기 카테고리(영문/한글) + item_seq   
-    - 예시: /api/v3/dur?category=elderly&item_seq=1234567890   
-    - 예시: /api/v3/dur?category=임부금기&item_seq=1234567890   
+    금기 카테고리(영문/한글) + item_seq
+    예시: /api/v3/dur?category=elderly&item_seq=1234567890
+    예시: /api/v3/dur?category=임부금기&item_seq=1234567890
     """
     await upsert_anonymous_user(user_id, request)
 

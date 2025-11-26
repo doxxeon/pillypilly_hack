@@ -88,12 +88,11 @@ async def save_bytes(
         upsert=True,
     )
 
-    # 이전 파일 정리(파일 아이디가 바뀌었을 때만)
+    # 이전 파일 정리
     if prev_file_id and prev_file_id != file_id:
         try:
             await gridfs_bucket.delete(prev_file_id)
         except Exception:
-            # 이전 파일이 이미 없거나 삭제 실패해도 서비스 영향은 없으니 무시
             pass
 
     return meta

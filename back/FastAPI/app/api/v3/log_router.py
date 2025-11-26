@@ -1,4 +1,4 @@
-# app/api/v2/log_router.py
+# app/api/v3/log_router.py
 import asyncio
 import anyio
 import math
@@ -16,7 +16,9 @@ from app.utils.logger import logger_drugs
 
 router = APIRouter()
 
-# DUR 카테고리 키 매핑 (출력 구조 유지용)
+# ──────────────────────────────────────────────
+# DUR 카테고리 키 매핑
+# ──────────────────────────────────────────────
 DUR_KEYMAP = {
     "elderly": "고령자",
     "age": "특정연령대",
@@ -91,7 +93,7 @@ async def get_combined_info(
                 )
 
             except Exception as inner_e:
-                logger_drugs.error(f"❌ item_seq={item_seq} 처리 중 오류: {inner_e}")
+                logger_drugs.error(f"item_seq={item_seq} 처리 중 오류: {inner_e}")
                 logger_drugs.error(traceback.format_exc())
 
         elapsed = round(anyio.current_time() - start_time, 4)
@@ -105,7 +107,7 @@ async def get_combined_info(
     except Exception as e:
         logger_drugs.error(f"[FATAL] 통합조회 전체 실패: {e}")
         logger_drugs.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"❌ 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"서버 오류: {e}")
 
 
 @router.post("/log/by-standard-code", summary="표준코드로 통합조회")
@@ -174,7 +176,7 @@ async def get_combined_info_by_standard_code(
                 )
 
             except Exception as inner_e:
-                logger_drugs.error(f"❌ item_seq={item_seq} 처리 중 오류: {inner_e}")
+                logger_drugs.error(f"item_seq={item_seq} 처리 중 오류: {inner_e}")
                 logger_drugs.error(traceback.format_exc())
 
         elapsed = round(anyio.current_time() - start_time, 4)
@@ -193,96 +195,7 @@ async def get_combined_info_by_standard_code(
     except Exception as e:
         logger_drugs.error(f"[FATAL] 표준코드 기반 통합조회 전체 실패: {e}")
         logger_drugs.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"❌ 서버 오류: {e}")
-
-'''
-@router.post("/log/by-edi-code", summary="보험코드로 통합조회")
-async def get_combined_info_by_edi_code(
-    request: Request,
-    edi_code: str = Body(..., embed=True),
-    user_id: str = Depends(get_current_user),
-):
-    """
-    보험코드로 약품 정보 통합 조회
-    - edi_code: 보험코드 (필수)
-    """
-    start_time = anyio.current_time()
-    await upsert_anonymous_user(user_id, request)
-
-    try:
-        # 1. 보험코드로 item_seq 목록 추출
-        item_seqs = await get_item_seq_by_edi_code(edi_code)
-        
-        if not item_seqs:
-            return {
-                "message": "해당 보험코드에 대한 약품 정보가 없습니다.",
-                "search_code": {"edi_code": edi_code},
-                "results": {}
-            }
-
-        # 2. 기존 log 엔드포인트와 동일한 로직으로 통합 조회
-        final_result: Dict[str, dict] = {}
-
-        for item_seq in item_seqs:
-            try:
-                # ─────────────────────────────
-                # 내부 비동기 작업 정의
-                # ─────────────────────────────
-                async def _permit():
-                    with anyio.move_on_after(6.0) as scope:
-                        data = await get_permit_combined(item_seq)
-                    return {} if scope.cancel_called else (data or {})
-
-                async def _edrug():
-                    with anyio.move_on_after(5.0) as scope:
-                        data = await get_edrug_info(item_seq)
-                    return (EMPTY_EDRUG if scope.cancel_called else {**EMPTY_EDRUG, **(data or {})})
-
-                async def _dur():
-                    with anyio.move_on_after(6.0) as scope:
-                        data = await get_all_dur_info(item_seq)
-                    return {} if scope.cancel_called else (data or {})
-
-                # 세 그룹 병렬 실행
-                permit_result, dur_result, edrug_result = await asyncio.gather(
-                    _permit(), _dur(), _edrug()
-                )
-
-                # 최종 결과 조합
-                combined = {
-                    "permit": permit_result,
-                    "edrug": edrug_result,
-                    "dur": dur_result,
-                }
-                final_result[item_seq] = combined
-
-                # 로그 저장
-                await log_to_mongo(
-                    request, user_id, {"source": "edi_code", "edi_code": edi_code, "item_seq": item_seq}, combined
-                )
-
-            except Exception as inner_e:
-                logger_drugs.error(f"❌ item_seq={item_seq} 처리 중 오류: {inner_e}")
-                logger_drugs.error(traceback.format_exc())
-
-        elapsed = round(anyio.current_time() - start_time, 4)
-        logger_drugs.info(
-            f"[보험코드 기반 통합조회] user_id={user_id} | edi_code={edi_code} | count={len(item_seqs)} | elapsed={elapsed}s"
-        )
-
-        safe_result = clean_float_values(final_result)
-        return {
-            "message": "보험코드 기반 통합조회 완료",
-            "search_code": {"edi_code": edi_code},
-            "found_items": len(item_seqs),
-            "results": safe_result
-        }
-
-    except Exception as e:
-        logger_drugs.error(f"[FATAL] 보험코드 기반 통합조회 전체 실패: {e}")
-        logger_drugs.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"❌ 서버 오류: {e}")
-'''
+        raise HTTPException(status_code=500, detail=f"서버 오류: {e}")
 
 def clean_float_values(obj):
     if isinstance(obj, dict):

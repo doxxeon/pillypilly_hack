@@ -13,14 +13,17 @@ from app.db.mongodb import (
     dur_dosage_collection,
 )
 
-# ───────── 캐시 설정 ─────────
+# ──────────────────────────────────────────────
+# 캐시 설정
+# ──────────────────────────────────────────────
 USE_CACHE = os.getenv("DUR_USE_CACHE", "true").lower() == "true"
 CACHE_TTL_MIN = int(os.getenv("DUR_CACHE_TTL_MIN", "60"))
 _CACHE: Dict[str, Tuple[datetime, List[Dict[str, Any]]]] = {}
 
-
+# ──────────────────────────────────────────────
+# 캐시 관리 함수
+# ──────────────────────────────────────────────
 def _cache_get(key: str) -> Optional[List[Dict[str, Any]]]:
-    """캐시 데이터 조회"""
     if not USE_CACHE:
         return None
     now = datetime.now()

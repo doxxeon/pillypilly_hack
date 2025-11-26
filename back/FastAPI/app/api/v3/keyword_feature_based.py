@@ -1,4 +1,4 @@
-# app\api\v3\keyword_feature_based.py
+# app/api/v3/keyword_feature_based.py
 from fastapi import APIRouter, Request, Query, Depends
 from app.services.permit_service import search_permit_by_keywords
 from app.core.dependencies import get_current_user
@@ -8,6 +8,9 @@ from app.db.mongodb import db, searchlog_collection
 
 router = APIRouter()
 
+# ──────────────────────────────────────────────
+# 키워드 검색 엔드포인트
+# ──────────────────────────────────────────────
 @router.get("/keyword-search", summary="통합검색 (제품명/성분 한글/영문)")
 async def permit_unified_search(
     request: Request,
@@ -20,10 +23,13 @@ async def permit_unified_search(
         keyword,
         user_id)
     return {
-        "message": "✅ 통합검색 성공",
+        "message": "통합검색 성공",
         "results": results
     }
 
+# ──────────────────────────────────────────────
+# 통계 엔드포인트
+# ──────────────────────────────────────────────
 @router.get("/stats/top-pills", summary="알약 검색 TOP 랭크(multi)")
 async def stats_top_pills(
     start: str = Query(None, description="YYYY-MM-DD (로컬 기준)"),

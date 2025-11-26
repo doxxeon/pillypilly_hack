@@ -11,11 +11,9 @@ from app.utils.logger import logger
 import re
 
 
-"""
-───────────────────────────────
- (1) permit_detail 조회
-───────────────────────────────
-"""
+# ──────────────────────────────────────────────
+# 허가 상세 정보 조회
+# ──────────────────────────────────────────────
 async def get_permit_detail(item_seq: str) -> dict:
     try:
         result = await permit_detail_collection.find_one({"ITEM_SEQ": item_seq})
@@ -24,15 +22,13 @@ async def get_permit_detail(item_seq: str) -> dict:
         result.pop("_id", None)
         return result
     except Exception as e:
-        logger.error(f"❌ permit_detail 조회 실패: {e}")
+        logger.error(f"permit_detail 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="permit_detail DB 조회 중 오류")
 
 
-"""
-───────────────────────────────
- (2) permit_list 조회
-───────────────────────────────
-"""
+# ──────────────────────────────────────────────
+# 허가 목록 정보 조회
+# ──────────────────────────────────────────────
 async def get_permit_list(item_seq: str) -> dict:
     try:
         result = await permit_info_all_collection.find_one({"ITEM_SEQ": item_seq})
@@ -50,15 +46,13 @@ async def get_permit_list(item_seq: str) -> dict:
             "cancleName": result.get("CANCEL_NAME", "")
         }
     except Exception as e:
-        logger.error(f"❌ permit_list 조회 실패: {e}")
+        logger.error(f"permit_list 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="permit_list DB 조회 중 오류")
 
 
-"""
-───────────────────────────────
- (3) permit 통합 조회
-───────────────────────────────
-"""
+# ──────────────────────────────────────────────
+# 허가 통합 조회
+# ──────────────────────────────────────────────
 async def get_permit_combined(item_seq: str) -> dict:
     try:
         permit_detail = await get_permit_detail(item_seq)
@@ -70,20 +64,18 @@ async def get_permit_combined(item_seq: str) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"❌ 의약품 통합 조회 실패: {e}")
+        logger.error(f"의약품 통합 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="permit 통합 조회 중 오류")
 
 
-"""
-───────────────────────────────
- (4) 이미지 검색 요약 조회
-───────────────────────────────
-"""
+# ──────────────────────────────────────────────
+# 이미지 검색 요약 조회
+# ──────────────────────────────────────────────
 async def get_permit_summary(item_seq: str) -> dict:
     try:
         item = await permit_info_all_collection.find_one({"ITEM_SEQ": item_seq})
         if not item:
-            logger.warning(f"🔍 item_seq {item_seq}에 해당하는 항목 없음")
+            logger.warning(f"item_seq {item_seq}에 해당하는 항목 없음")
             return {}
 
         item.pop("_id", None)
@@ -95,15 +87,13 @@ async def get_permit_summary(item_seq: str) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"❌ get_permit_summary 실패: {str(e)}")
+        logger.error(f"get_permit_summary 실패: {str(e)}")
         raise HTTPException(status_code=500, detail="permit_summary DB 조회 중 오류")
 
 
-"""
-───────────────────────────────
- (5) 표준코드로 item_seq 검색
-───────────────────────────────
-"""
+# ──────────────────────────────────────────────
+# 표준코드로 item_seq 검색
+# ──────────────────────────────────────────────
 async def get_item_seq_by_standard_code(standard_code: str) -> List[str]:
     """표준코드로 item_seq 목록을 반환 (쉼표로 구분된 여러 코드 지원)"""
     try:
@@ -133,22 +123,19 @@ async def get_item_seq_by_standard_code(standard_code: str) -> List[str]:
         return item_seqs
         
     except Exception as e:
-        logger.error(f"❌ 표준코드 기반 item_seq 검색 실패: {e}")
+        logger.error(f"표준코드 기반 item_seq 검색 실패: {e}")
         raise HTTPException(status_code=500, detail="표준코드 기반 검색 중 오류")
 
 
-"""
-───────────────────────────────
- (6) 보험코드로 item_seq 검색
-───────────────────────────────
-"""
+# ──────────────────────────────────────────────
+# 보험코드로 item_seq 검색
+# ──────────────────────────────────────────────
 async def get_item_seq_by_edi_code(edi_code: str) -> List[str]:
     """보험코드로 item_seq 목록을 반환"""
     try:
         if not edi_code:
             raise HTTPException(status_code=400, detail="보험코드가 필요합니다.")
         
-        # 검색 조건 구성
         query_filter = {"EDI_CODE": edi_code}
         
         # DB 검색
@@ -161,31 +148,26 @@ async def get_item_seq_by_edi_code(edi_code: str) -> List[str]:
         return item_seqs
         
     except Exception as e:
-        logger.error(f"❌ 보험코드 기반 item_seq 검색 실패: {e}")
+        logger.error(f"보험코드 기반 item_seq 검색 실패: {e}")
         raise HTTPException(status_code=500, detail="보험코드 기반 검색 중 오류")
 
 
-"""
-───────────────────────────────
- (7) 통합 검색 (키워드 기반)
-───────────────────────────────
-"""
+# ──────────────────────────────────────────────
+# 통합 검색 (키워드 기반)
+# ──────────────────────────────────────────────
 async def search_permit_by_keywords(
     request: Request,
     keyword: str,
     user_id: str
 ):
     try:
-        # CamelCase 단어 분리
         spaced_keyword = re.sub(r'([a-z])([A-Z])', r'\1 \2', keyword)
 
-        # 쉼표, 공백 기준 분리 후 2자 이상만 허용
         keyword_list = [k.strip() for k in re.split(r"[,\s]+", spaced_keyword) if len(k.strip()) >= 2]
 
         if not keyword_list:
             raise HTTPException(status_code=400, detail="검색어는 2자 이상이어야 합니다.")
 
-        # OR 조건 필터 구성
         query_filter = {"$or": []}
         for kw in keyword_list:
             query_filter["$or"].extend([
@@ -195,7 +177,7 @@ async def search_permit_by_keywords(
                 {"ITEM_ENG_INGR_NAME": {"$regex": f".*{re.escape(kw)}.*", "$options": "i"}}
             ])
 
-        # 🔍 DB 검색
+        # DB 검색
         results_cursor = permit_info_all_collection.find(query_filter)
         results = []
         async for doc in results_cursor:
@@ -207,7 +189,6 @@ async def search_permit_by_keywords(
                 "imageUrl": doc.get("BIG_PRDT_IMG_URL", "")
             })
 
-        # ✅ 검색 로그 기록
         log = SearchLog(
             user_id=user_id,
             query={"source": "keyword", "keyword": keyword},
@@ -219,5 +200,5 @@ async def search_permit_by_keywords(
         return {"items": results}
 
     except Exception as e:
-        logger.error(f"❌ 통합검색 실패: {str(e)}")
+        logger.error(f"통합검색 실패: {str(e)}")
         raise HTTPException(status_code=500, detail="통합검색 오류 발생")

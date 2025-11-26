@@ -1,5 +1,4 @@
-#FastAPI\app\api\v3\auth_router.py
-
+# app/api/v3/auth_router.py
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
@@ -14,10 +13,11 @@ from app.db.crud.user_auth import upsert_anonymous_user
 from app.core.rate_limit import rate_limit_ip
 from app.utils.logger import logger_auth, logger
 
-
 router = APIRouter()
 
-# 캐시 없는 경우 새 UUID 발급(쿠키 저장) — 기존 동작 유지
+# ──────────────────────────────────────────────
+# 익명 사용자 쿠키 관리
+# ──────────────────────────────────────────────
 def _get_or_set_anon_cookie(request: Request, response: Response) -> str:
     anon_id = request.cookies.get("anonymous_id")
     if not anon_id:
@@ -38,9 +38,8 @@ async def issue_tokens(request: Request, response: Response):
     # 1) 사용자 식별(쿠키 없으면 새 UUID 발급 → user_id로 사용)
     user_id = _get_or_set_anon_cookie(request, response)
 
-    # 2) 활성 세션 제한/정리
     now = datetime.now(timezone.utc)
-    max_sessions = 3  # ← 원하는 값(진단 시 1로 낮춰서 테스트 추천)
+    max_sessions = 3
 
     pipeline = [
         {"$match": {
@@ -70,7 +69,6 @@ async def issue_tokens(request: Request, response: Response):
         logger_auth.debug(f"[AUTH] NO_REVOKE_NEEDED user_id={user_id} "
                          f"active={len(active_by_sid)} max={max_sessions}")
 
-    # 3) 새 세션 발급
     sid = str(uuid.uuid4())
     access = create_access_token(user_id=user_id, sid=sid)
     refresh = create_refresh_token(user_id=user_id, sid=sid)
@@ -91,7 +89,6 @@ async def issue_tokens(request: Request, response: Response):
         "ip": request.client.host,
     })
 
-    # 6) 사용자 로그 업서트
     await upsert_anonymous_user(user_id, request)
     logger.debug(f"📌사용자 Access+Refresh 발급 user_id={user_id}")
 
@@ -99,7 +96,7 @@ async def issue_tokens(request: Request, response: Response):
 
 @router.post("/auth/refresh", summary="리프레시로 Access 재발급 (회전)")
 async def refresh_tokens(request: Request, body: dict):
-    # 1) 클라이언트가 보낸 refresh 토큰 검증
+    #클라이언트가 보낸 refresh 토큰 검증
     refresh = body.get("refresh_token")
     if not refresh:
         raise HTTPException(status_code=400, detail="refresh_token 필요",
@@ -111,10 +108,8 @@ async def refresh_tokens(request: Request, body: dict):
     sid = payload["sid"]
     jti = payload["jti"]
 
-    # ✅ now 한 번만 계산
     now = datetime.now(timezone.utc)
 
-    # 2) DB에서 유효 refresh인지 확인(해시 비교 + 미폐기 + 미만료)
     doc = await refresh_tokens_collection.find_one({"jti": jti, "revoked": False})
     if not doc:
         raise HTTPException(status_code=401, detail="유효하지 않은 세션")
@@ -122,7 +117,6 @@ async def refresh_tokens(request: Request, body: dict):
     if doc.get("token_hash") != hash_refresh_token(refresh):
         raise HTTPException(status_code=401, detail="토큰 불일치")
 
-    # ✅ expires_at이 naive인 경우 UTC로 보정 후 비교
     expires_at = doc.get("expires_at")
     if expires_at is None:
         raise HTTPException(status_code=401, detail="만료된 세션")
@@ -133,8 +127,6 @@ async def refresh_tokens(request: Request, body: dict):
     if expires_at < now:
         raise HTTPException(status_code=401, detail="만료된 세션")
 
-    # 3) 리프레시 회전(rotate) – 보안 강화를 위해 기존 jti 폐기 후 신규 발급
-    # ✅ revoke 하면서 마지막 사용 시각 갱신
     await refresh_tokens_collection.update_one(
         {"jti": jti},
         {"$set": {"revoked": True, "last_used_at": now}}
@@ -165,7 +157,6 @@ async def refresh_tokens(request: Request, body: dict):
 
 @router.post("/auth/logout", summary="세션 종료(Refresh 폐기)")
 async def logout(body: dict):
-    # 클라이언트가 보유중인 refresh를 폐기
     refresh = body.get("refresh_token")
     if not refresh:
         raise HTTPException(status_code=400, detail="refresh_token 필요")
@@ -174,7 +165,6 @@ async def logout(body: dict):
         payload = verify_refresh_token(refresh)
         jti = payload["jti"]
     except Exception:
-        # 형식이 이상해도 조용히 처리(보안상 정보 노출 방지)
         return JSONResponse({"ok": True})
 
     await refresh_tokens_collection.update_one({"jti": jti}, {"$set": {"revoked": True}})

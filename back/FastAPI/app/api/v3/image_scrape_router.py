@@ -1,4 +1,4 @@
-# app/api/v2/image_scrape_router.py
+# app/api/v3/image_scrape_router.py
 from __future__ import annotations
 from typing import AsyncGenerator, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends, Request
@@ -12,7 +12,9 @@ from app.services.token_service import verify_access_token
 
 router = APIRouter()
 
-
+# ──────────────────────────────────────────────
+# GridFS 스트리밍 함수
+# ──────────────────────────────────────────────
 async def _iter_gridfs(stream) -> AsyncGenerator[bytes, None]:
     """GridFS 파일을 chunk 단위로 스트리밍."""
     read = 0
@@ -26,13 +28,14 @@ async def _iter_gridfs(stream) -> AsyncGenerator[bytes, None]:
         if length is not None and read >= length:
             break
 
-
+# ──────────────────────────────────────────────
+# 이미지 스크래핑 엔드포인트
+# ──────────────────────────────────────────────
 @router.get("/image-scrape", summary="이미지 스크래핑")
 async def get_image(
     request: Request,
     item_seq: str,
     refresh: bool = Query(False, description="true면 캐시 무시하고 재스크랩 시도"),
-    user_id: str = Depends(get_current_user)
 ):
     """
     프록시 스트리밍:

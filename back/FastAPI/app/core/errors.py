@@ -7,7 +7,7 @@ from app.utils.logger import logger_error
 from app.services.token_service import verify_access_token
 import json
 
-# ▶ 예외 정의
+# 예외 정의
 class ModelInferenceError(HTTPException):
     def __init__(
         self,
@@ -34,10 +34,10 @@ class ExternalApiError(HTTPException):
             "code": code, "message": message, "context": context or {}
         })
 
-# ▶ 에러 로그 저장 (Mongo)
-from app.db.crud.error_log import log_error_to_mongo  # 순환 import 금지 주의
+# 에러 로그 저장
+from app.db.crud.error_log import log_error_to_mongo
 
-VALIDATION_ERROR_MAX_ITEMS = 10  # ValidationError context 최대 저장 개수
+VALIDATION_ERROR_MAX_ITEMS = 10
 
 def _user_from_token(request: Request) -> Optional[str]:
     auth = request.headers.get("authorization") or request.headers.get("Authorization")
@@ -45,7 +45,7 @@ def _user_from_token(request: Request) -> Optional[str]:
         return None
     token = auth.split(" ", 1)[1].strip()
     try:
-        payload = verify_access_token(token)  # 토큰 검증 실패 시 예외 → None 처리
+        payload = verify_access_token(token)
         return payload.get("sub")
     except Exception:
         return None
@@ -59,7 +59,7 @@ async def _resolve_user_id(request: Request, exc: Optional[Exception] = None) ->
     uid = request.cookies.get("anonymous_id")
     if uid:
         return uid
-    # 3) (선택) 레이트리밋 등에서 detail.context.key 제공 시 보정
+    # 3) 레이트리밋 등에서 detail.context.key 제공 시 보정
     if exc and isinstance(exc, HTTPException) and isinstance(exc.detail, dict):
         ctx = exc.detail.get("context")
         if isinstance(ctx, dict) and "key" in ctx:
@@ -88,7 +88,7 @@ async def _safe_log_to_mongo(
             exc=exc,
             status_code=status_code,
             detail=detail,
-            handler=handler_name,  # 구현에 없으면 except로 우회
+            handler=handler_name,
         )
     except TypeError:
         await log_error_to_mongo(
@@ -116,7 +116,7 @@ def _file_log(
         "user_id": user_id,
         "detail": detail,
     }
-    logger_error.error(json.dumps(record, ensure_ascii=False))
+    logger_error.error(json.dumps(record, ensure_ascii=False, default=str))
 
 # ▶ FastAPI 핸들러 등록
 def register_exception_handlers(app):
@@ -147,7 +147,7 @@ def register_exception_handlers(app):
         detail = {
             "code": "REQUEST_VALIDATION_ERROR",
             "message": "Invalid request",
-            "context": errs[:VALIDATION_ERROR_MAX_ITEMS],  # 상위 N개만 저장
+            "context": errs[:VALIDATION_ERROR_MAX_ITEMS],
         }
         detail_with_meta = _attach_error_meta(detail, exc)
         _file_log(handler_name="_validation_error", request=request, user_id=user_id,
@@ -162,7 +162,6 @@ def register_exception_handlers(app):
         base_detail = exc.detail if isinstance(exc.detail, dict) else {"message": str(exc.detail)}
         detail_with_meta = _attach_error_meta(base_detail, exc)
         
-        # 404 에러일 때만 INFO로, 나머지는 ERROR로
         if exc.status_code == 404:
             logger_error.info(json.dumps({
                 "handler": "_http_error",
@@ -171,7 +170,7 @@ def register_exception_handlers(app):
                 "method": request.method,
                 "user_id": user_id,
                 "detail": detail_with_meta,
-            }, ensure_ascii=False))
+            }, ensure_ascii=False, default=str))
         else:
             _file_log(handler_name="_http_error", request=request, user_id=user_id,
                       status_code=exc.status_code, detail=detail_with_meta)

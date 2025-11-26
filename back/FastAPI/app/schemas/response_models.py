@@ -1,8 +1,12 @@
+# app/schemas/response_models.py
 # 응답 JSON 모델 정의
 
 from pydantic import BaseModel
 from typing import List, Optional
 
+# ──────────────────────────────────────────────
+# 응답 모델 정의
+# ──────────────────────────────────────────────
 class PermitPrecautions(BaseModel):
     contraindications: List[str]
     warnings: List[str]
