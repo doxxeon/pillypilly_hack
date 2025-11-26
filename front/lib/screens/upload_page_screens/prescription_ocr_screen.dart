@@ -76,9 +76,9 @@ class _PrescriptionOcrScreenState extends State<PrescriptionOcrScreen> {
       await _tts.setSpeechRate(0.5);
       await _tts.stop();
       await _tts.speak(text);
+      // Talkback을 위한 Semantics 업데이트 (음성안내가 켜져 있을 때만)
+      SemanticsService.announce(text, TextDirection.ltr);
     }
-    // Talkback을 위한 Semantics 업데이트
-    SemanticsService.announce(text, TextDirection.ltr);
   }
 
   Future<void> _vibrate({int duration = 120}) async {

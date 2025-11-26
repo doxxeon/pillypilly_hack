@@ -54,8 +54,9 @@ class _PillCameraPreviewPageState extends State<PillCameraPreviewPage> {
       await _tts.setSpeechRate(0.5);
       if (interrupt) await _tts.stop();
       await _tts.speak(text);
+      // Talkback을 위한 Semantics 업데이트 (음성안내가 켜져 있을 때만)
+      SemanticsService.announce(text, TextDirection.ltr);
     }
-    SemanticsService.announce(text, TextDirection.ltr);
   }
 
   Future<void> _initializeCamera() async {
@@ -130,13 +131,12 @@ class _PillCameraPreviewPageState extends State<PillCameraPreviewPage> {
 
       if (theme.isVoiceGuideEnabled) {
         await _announce("${widget.currentIndex + 1}번 알약 촬영이 완료되었습니다.");
+        // Talkback을 위한 Semantics 업데이트 (음성안내가 켜져 있을 때만)
+        SemanticsService.announce(
+          "${widget.currentIndex + 1}번 알약 촬영 완료",
+          TextDirection.ltr,
+        );
       }
-
-      // Talkback을 위한 Semantics 업데이트
-      SemanticsService.announce(
-        "${widget.currentIndex + 1}번 알약 촬영 완료",
-        TextDirection.ltr,
-      );
 
       debugPrint('📸 [알약 촬영] 콜백 호출 전...');
       // 콜백으로 이미지 파일 전달
@@ -152,11 +152,12 @@ class _PillCameraPreviewPageState extends State<PillCameraPreviewPage> {
       debugPrint("❌ [알약 촬영] 스택 트레이스: $stackTrace");
       if (theme.isVoiceGuideEnabled) {
         await _announce("촬영 중 오류가 발생했습니다.");
+        // Talkback을 위한 Semantics 업데이트 (음성안내가 켜져 있을 때만)
+        SemanticsService.announce(
+          "촬영 중 오류가 발생했습니다.",
+          TextDirection.ltr,
+        );
       }
-      SemanticsService.announce(
-        "촬영 중 오류가 발생했습니다.",
-        TextDirection.ltr,
-      );
     } finally {
       if (mounted) {
         setState(() {

@@ -250,15 +250,11 @@ class _PillCapturePageState extends State<PillCapturePage> {
         if (_currentIndex < _totalCount) {
           final nextMsg = "${_currentIndex}개 촬영이 완료되었습니다. 다음 ${_currentIndex + 1}번 약을 촬영해주세요.";
           await _announce(nextMsg);
-          // Talkback을 위한 Semantics 업데이트
-          SemanticsService.announce(
-            "총 $_totalCount개 중 ${_currentIndex + 1}번 알약을 촬영합니다. $nextMsg",
-            TextDirection.ltr,
-          );
+          // Talkback을 위한 Semantics 업데이트는 _announce 내부에서 처리됨
         } else {
           final completeMsg = "모든 알약 촬영이 완료되었습니다. 서버에서 인식과 분석을 진행합니다.";
           await _announce(completeMsg);
-          SemanticsService.announce(completeMsg, TextDirection.ltr);
+          // Talkback을 위한 Semantics 업데이트는 _announce 내부에서 처리됨
           _showSnack("모든 알약 촬영 완료!");
         }
       } else {
@@ -414,15 +410,11 @@ class _PillCapturePageState extends State<PillCapturePage> {
         if (_currentIndex < _totalCount) {
           final nextMsg = "${_currentIndex}개 촬영이 완료되었습니다. 다음 ${_currentIndex + 1}번 약을 촬영해주세요.";
           await _announce(nextMsg);
-          // Talkback을 위한 Semantics 업데이트
-          SemanticsService.announce(
-            "총 $_totalCount개 중 ${_currentIndex + 1}번 알약을 촬영합니다. $nextMsg",
-            TextDirection.ltr,
-          );
+          // Talkback을 위한 Semantics 업데이트는 _announce 내부에서 처리됨
         } else {
           final completeMsg = "모든 알약 촬영이 완료되었습니다. 서버에서 인식과 분석을 진행합니다.";
           await _announce(completeMsg);
-          SemanticsService.announce(completeMsg, TextDirection.ltr);
+          // Talkback을 위한 Semantics 업데이트는 _announce 내부에서 처리됨
           _showSnack("모든 알약 촬영 완료!");
         }
       } else {
